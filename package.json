@@ -1,0 +1,66 @@
+{
+  "name": "@antelopejs/file-storage-s3",
+  "version": "0.0.1",
+  "description": "A file storage module that implements the file-storage interface of AntelopeJS with S3-compatible backends (AWS S3, Cloudflare R2)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AntelopeJS/file-storage-s3.git"
+  },
+  "keywords": [
+    "antelopejs",
+    "file-storage",
+    "s3",
+    "cloudflare-r2",
+    "presigned-url",
+    "upload"
+  ],
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "private": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.6.5",
+  "scripts": {
+    "build": "tsc",
+    "dev:prepare": "cd playground && ajs module imports install",
+    "dev": "ajs project run -w -p playground",
+    "format": "prettier --write .",
+    "generate": "ajs module exports generate",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "prepack": "pnpm run build",
+    "prepare": "ajs module imports install",
+    "release": "pnpm run lint && pnpm run test && pnpm run prepack && release-it",
+    "test": "ajs module test ."
+  },
+  "antelopeJs": {
+    "exportsPath": "dist/interfaces",
+    "imports": [
+      "core@beta"
+    ],
+    "importsOptional": []
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.700.0",
+    "@aws-sdk/s3-request-presigner": "^3.700.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.25.0",
+    "@release-it/conventional-changelog": "^10.0.1",
+    "@types/node": "^22.15.18",
+    "eslint-config-prettier": "^10.1.2",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.6",
+    "eslint": "^9.25.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "release-it": "^19.0.2",
+    "typescript-eslint": "^8.30.1",
+    "typescript": "^5.8.3"
+  }
+}
