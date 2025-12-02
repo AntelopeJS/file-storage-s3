@@ -95,7 +95,7 @@ export async function construct(config: Config): Promise<void> {
   moduleConfig = config;
 
   // Register the interface implementation
-  await ImplementInterface(import('@ajs.local/file-storage/beta'), import('./implementations/file-storage/beta'));
+  ImplementInterface(await import('@ajs.local/file-storage/beta'), await import('./implementations/file-storage/beta'));
 }
 
 /**
