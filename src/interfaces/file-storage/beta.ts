@@ -106,22 +106,18 @@ export namespace internal {
    * The generated URL includes signed headers for Content-Type and Content-Length
    * to prevent tampering (SigV4 will reject mismatched values).
    */
-  export const createUploadUrl = InterfaceFunction<
-    (
-      request: UploadRequest,
-      constraints?: UploadConstraints,
-      storage?: string,
-    ) => Promise<PresignedUploadResponse>
-  >();
+  export const createUploadUrl =
+    InterfaceFunction<
+      (request: UploadRequest, constraints?: UploadConstraints, storage?: string) => Promise<PresignedUploadResponse>
+    >();
 
   /**
    * Creates a URL to read/download a file.
    * For public files: returns the direct public URL.
    * For private files: returns a presigned GET URL with short expiration.
    */
-  export const createReadUrl = InterfaceFunction<
-    (resourceKey: string, expiresIn?: number, storage?: string) => Promise<PresignedReadResponse>
-  >();
+  export const createReadUrl =
+    InterfaceFunction<(resourceKey: string, expiresIn?: number, storage?: string) => Promise<PresignedReadResponse>>();
 
   /**
    * Deletes a file from storage.
@@ -137,9 +133,7 @@ export namespace internal {
    * Retrieves metadata for a file.
    * Throws FileNotFoundError if the file doesn't exist.
    */
-  export const getFileMetadata = InterfaceFunction<
-    (resourceKey: string, storage?: string) => Promise<FileMetadata>
-  >();
+  export const getFileMetadata = InterfaceFunction<(resourceKey: string, storage?: string) => Promise<FileMetadata>>();
 }
 
 /**
