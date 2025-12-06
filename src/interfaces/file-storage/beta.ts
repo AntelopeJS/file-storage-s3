@@ -19,8 +19,6 @@ export interface UploadRequest {
   path?: string;
   /** Optional custom metadata to attach to the file */
   metadata?: Record<string, string>;
-  /** Optional visibility override (defaults to storage config) */
-  visibility?: Visibility;
 }
 
 /**
