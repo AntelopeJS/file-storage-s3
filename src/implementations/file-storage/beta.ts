@@ -174,7 +174,7 @@ export namespace internal {
       const response = await client.send(command);
 
       return {
-        filename: '',
+        filename: response.Metadata?.filename || '',
         resourceKey,
         size: response.ContentLength ?? 0,
         mimetype: response.ContentType ?? 'application/octet-stream',
