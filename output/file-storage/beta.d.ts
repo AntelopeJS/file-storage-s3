@@ -54,6 +54,8 @@ export interface PresignedReadResponse {
 export interface FileMetadata {
     /** Unique resource key */
     resourceKey: string;
+    /** Original filename */
+    filename: string;
     /** File size in bytes */
     size: number;
     /** MIME type */
