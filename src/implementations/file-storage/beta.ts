@@ -50,20 +50,16 @@ export namespace internal {
     constraints?: UploadConstraints,
     storage?: string,
   ): Promise<PresignedUploadResponse> => {
-    // Validate the request
     validateUploadRequest(request, constraints);
 
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
     const resourceKey = generateResourceKey(request);
 
-    // Build metadata with custom user metadata
     const metadata: Record<string, string> = {
-      'original-filename': request.filename,
       ...(request.metadata || {}),
     };
 
-    // Create the PutObjectCommand with signed headers for Content-Type and Content-Length
     const command = new PutObjectCommand({
       Bucket: config.bucket,
       Key: resourceKey,
@@ -72,23 +68,32 @@ export namespace internal {
       Metadata: metadata,
     });
 
-    // Generate presigned URL with SigV4
+    const unhoistableHeaders = new Set<string>();
+    for (const key of Object.keys(metadata)) {
+      unhoistableHeaders.add(`x-amz-meta-${key}`);
+    }
+
     const expiresIn = config.defaultUploadExpiration;
     const uploadUrl = await getSignedUrl(client, command, {
       expiresIn,
-      signableHeaders: new Set(['content-type', 'content-length']),
+      unhoistableHeaders,
     });
 
     const expiresAt = Date.now() + expiresIn * 1000;
+
+    const headers: Record<string, string> = {
+      'Content-Type': request.mimetype,
+      'Content-Length': String(request.size),
+    };
+    for (const [key, value] of Object.entries(metadata)) {
+      headers[`x-amz-meta-${key}`] = value;
+    }
 
     return {
       uploadUrl,
       resourceKey,
       expiresAt,
-      headers: {
-        'Content-Type': request.mimetype,
-        'Content-Length': String(request.size),
-      },
+      headers,
     };
   };
 
@@ -169,6 +174,7 @@ export namespace internal {
       const response = await client.send(command);
 
       return {
+        filename: '',
         resourceKey,
         size: response.ContentLength ?? 0,
         mimetype: response.ContentType ?? 'application/octet-stream',
