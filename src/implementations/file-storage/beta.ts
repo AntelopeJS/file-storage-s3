@@ -57,6 +57,7 @@ export namespace internal {
     const resourceKey = generateResourceKey(request);
 
     const metadata: Record<string, string> = {
+      filename: request.filename,
       ...(request.metadata || {}),
     };
 
