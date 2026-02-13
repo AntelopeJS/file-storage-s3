@@ -1,0 +1,36 @@
+{
+  "cacheFolder": ".antelope/cache",
+  "modules": {
+    "local": {
+      "source": {
+        "type": "local",
+        "path": "."
+      },
+      "config": {
+        "default": {
+          "endpoint": "https://s3.amazonaws.com",
+          "region": "us-east-1",
+          "accessKeyId": "test-access-key",
+          "secretAccessKey": "test-secret-key",
+          "bucket": "private-bucket",
+          "defaultVisibility": "private",
+          "defaultUploadExpiration": 3600,
+          "defaultReadExpiration": 300
+        },
+        "storages": {
+          "public-assets": {
+            "endpoint": "https://s3.amazonaws.com",
+            "region": "us-east-1",
+            "accessKeyId": "test-access-key",
+            "secretAccessKey": "test-secret-key",
+            "bucket": "public-bucket",
+            "publicUrl": "https://cdn.example.com",
+            "defaultVisibility": "public",
+            "defaultUploadExpiration": 3600,
+            "defaultReadExpiration": 300
+          }
+        }
+      }
+    }
+  }
+}
