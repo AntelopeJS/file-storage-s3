@@ -24,11 +24,15 @@ interface StoredFile {
 }
 
 interface NotFoundErrorShape extends Error {
-  $metadata: { httpStatusCode: number };
+  $metadata: NotFoundMetadata;
 }
 
 type S3SendMethod = S3Client['send'];
 type SendCommand = DeleteObjectCommand | HeadObjectCommand;
+
+interface NotFoundMetadata {
+  httpStatusCode: number;
+}
 
 const originalSend = S3Client.prototype.send;
 const storageByResourceKey: Map<string, StoredFile> = new Map();
