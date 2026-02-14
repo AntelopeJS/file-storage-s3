@@ -43,7 +43,7 @@ function ensureModuleConfig(): Config {
 
 function getNamedStorageConfig(config: Config, storage: string): StorageConfig {
   const namedStorage = config.storages?.[storage];
-  if (!namedStorage) {
+  if (namedStorage === undefined) {
     throw new Error(`Storage '${storage}' not found in configuration`);
   }
   return namedStorage;

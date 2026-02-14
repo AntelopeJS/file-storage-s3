@@ -52,9 +52,10 @@ function normalizePathPrefix(path?: string): string {
 }
 
 function validateUploadRequest(request: UploadRequest, constraints?: UploadConstraints): void {
-  if (constraints?.maxSize !== undefined && request.size > constraints.maxSize) {
+  const maxSize = constraints?.maxSize;
+  if (maxSize !== undefined && request.size > maxSize) {
     throw new UploadValidationError(
-      `File size ${request.size} exceeds maximum allowed size ${constraints.maxSize}`,
+      `File size ${request.size} exceeds maximum allowed size ${maxSize}`,
       'SIZE_EXCEEDED',
     );
   }
@@ -100,7 +101,7 @@ function shouldUsePublicUrl(config: StorageConfig): boolean {
 }
 
 function buildPublicReadUrl(resourceKey: string, config: StorageConfig): string {
-  const publicUrl = config.publicUrl ?? '';
+  const publicUrl = config.publicUrl as string;
   return `${publicUrl.replace(/\/$/, '')}/${resourceKey}`;
 }
 
@@ -124,7 +125,7 @@ function isNotFoundError(error: unknown): boolean {
 function mapHeadObjectToFileMetadata(response: HeadObjectCommandOutput, resourceKey: string): FileMetadata {
   const metadata = response.Metadata;
   const fileMetadata: FileMetadata = {
-    filename: response.Metadata?.filename ?? '',
+    filename: metadata?.filename ?? '',
     resourceKey,
     size: response.ContentLength ?? 0,
     mimetype: response.ContentType ?? DefaultMimetype,
