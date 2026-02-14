@@ -78,7 +78,11 @@ function destroyS3Clients(): void {
 
 export async function construct(config: Config): Promise<void> {
   moduleConfig = config;
-  await ImplementInterface(await import('@ajs.local/file-storage/beta'), await import('./implementations/file-storage/beta'));
+  const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
+    import('@ajs.local/file-storage/beta'),
+    import('./implementations/file-storage/beta'),
+  ]);
+  ImplementInterface(fileStorageInterface, fileStorageImplementation);
 }
 
 export function start(): void {}

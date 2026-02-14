@@ -97,7 +97,9 @@ describe('file-storage interface', () => {
           { allowedMimetypes: ['image/png', 'image/jpeg'] },
         ),
       (error: unknown) =>
-        error instanceof UploadValidationError && error.code === 'MIMETYPE_NOT_ALLOWED' && error.message.includes('pdf'),
+        error instanceof UploadValidationError &&
+        error.code === 'MIMETYPE_NOT_ALLOWED' &&
+        error.message.includes('pdf'),
     );
   });
 
@@ -138,7 +140,10 @@ describe('file-storage interface', () => {
   });
 
   it('throws FileNotFoundError when metadata is requested for a missing file', async () => {
-    await assert.rejects(() => GetFileMetadata(MissingResourceKey), (error: unknown) => error instanceof FileNotFoundError);
+    await assert.rejects(
+      () => GetFileMetadata(MissingResourceKey),
+      (error: unknown) => error instanceof FileNotFoundError,
+    );
   });
 
   it('deletes files from storage', async () => {
@@ -157,14 +162,14 @@ describe('file-storage interface', () => {
 });
 
 function createMockSendMethod(): S3SendMethod {
-  return (async (command: unknown) => {
+  return ((command: unknown) => {
     if (command instanceof HeadObjectCommand) {
-      return handleHeadObjectCommand(command);
+      return Promise.resolve(handleHeadObjectCommand(command));
     }
     if (command instanceof DeleteObjectCommand) {
-      return handleDeleteObjectCommand(command);
+      return Promise.resolve(handleDeleteObjectCommand(command));
     }
-    throw new Error(`Unexpected S3 command: ${String(command)}`);
+    return Promise.reject(new Error(`Unexpected S3 command: ${String(command)}`));
   }) as S3SendMethod;
 }
 
