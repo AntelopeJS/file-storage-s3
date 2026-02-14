@@ -110,7 +110,7 @@ function isErrorLike(error: unknown): error is ErrorLike {
   if (typeof error !== 'object' || !error) {
     return false;
   }
-  return true;
+  return 'name' in error || '$metadata' in error;
 }
 
 function isNotFoundError(error: unknown): boolean {
