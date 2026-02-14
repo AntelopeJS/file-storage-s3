@@ -163,11 +163,15 @@ describe('file-storage interface', () => {
 
 function createMockSendMethod(): S3SendMethod {
   return ((command: unknown) => {
-    if (command instanceof HeadObjectCommand) {
-      return Promise.resolve(handleHeadObjectCommand(command));
-    }
-    if (command instanceof DeleteObjectCommand) {
-      return Promise.resolve(handleDeleteObjectCommand(command));
+    try {
+      if (command instanceof HeadObjectCommand) {
+        return Promise.resolve(handleHeadObjectCommand(command));
+      }
+      if (command instanceof DeleteObjectCommand) {
+        return Promise.resolve(handleDeleteObjectCommand(command));
+      }
+    } catch (error: unknown) {
+      return Promise.reject(error);
     }
     return Promise.reject(new Error(`Unexpected S3 command: ${String(command)}`));
   }) as S3SendMethod;

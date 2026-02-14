@@ -7,7 +7,7 @@ import {
   UploadValidationError,
   FileNotFoundError,
 } from '@ajs.local/file-storage/beta';
-import { getS3Client, getStorageConfig } from '../../index';
+import { getS3Client, getStorageConfig, type StorageConfig } from '../../index';
 import {
   PutObjectCommand,
   DeleteObjectCommand,
@@ -95,13 +95,11 @@ function buildUnhoistableHeaders(metadata: Record<string, string>): Set<string> 
   return new Set(Object.keys(metadata).map((key) => `${MetadataHeaderPrefix}${key}`));
 }
 
-function shouldUsePublicUrl(storage?: string): boolean {
-  const config = getStorageConfig(storage);
+function shouldUsePublicUrl(config: StorageConfig): boolean {
   return config.defaultVisibility === 'public' && Boolean(config.publicUrl);
 }
 
-function buildPublicReadUrl(resourceKey: string, storage?: string): string {
-  const config = getStorageConfig(storage);
+function buildPublicReadUrl(resourceKey: string, config: StorageConfig): string {
   const publicUrl = config.publicUrl ?? '';
   return `${publicUrl.replace(/\/$/, '')}/${resourceKey}`;
 }
@@ -178,11 +176,11 @@ export namespace internal {
     expiresIn?: number,
     storage?: string,
   ): Promise<PresignedReadResponse> => {
-    if (shouldUsePublicUrl(storage)) {
-      return { url: buildPublicReadUrl(resourceKey, storage) };
+    const config = getStorageConfig(storage);
+    if (shouldUsePublicUrl(config)) {
+      return { url: buildPublicReadUrl(resourceKey, config) };
     }
 
-    const config = getStorageConfig(storage);
     const client = getS3Client(storage);
     const effectiveExpiresIn = expiresIn ?? config.defaultReadExpiration;
     const command = new GetObjectCommand({
