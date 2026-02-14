@@ -110,7 +110,10 @@ function isErrorLike(error: unknown): error is ErrorLike {
   if (typeof error !== 'object' || !error) {
     return false;
   }
-  return 'name' in error || '$metadata' in error;
+  const candidate = error as { name?: unknown; $metadata?: unknown };
+  const hasName = typeof candidate.name === 'string';
+  const hasMetadata = typeof candidate.$metadata === 'object' && candidate.$metadata !== null;
+  return hasName || hasMetadata;
 }
 
 function isNotFoundError(error: unknown): boolean {
