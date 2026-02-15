@@ -4,7 +4,8 @@
     "local": {
       "source": {
         "type": "local",
-        "path": "."
+        "path": ".",
+        "installCommands": ["npx tsc"]
       },
       "config": {
         "default": {
