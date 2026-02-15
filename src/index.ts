@@ -2,46 +2,27 @@ import { ImplementInterface } from '@ajs/core/beta';
 import { S3Client } from '@aws-sdk/client-s3';
 import { Visibility } from '@ajs.local/file-storage/beta';
 
-/**
- * Configuration for a single storage (bucket)
- */
 export interface StorageConfig {
-  /** S3-compatible endpoint URL (e.g., https://<account>.r2.cloudflarestorage.com) */
   endpoint: string;
-  /** AWS region or "auto" for Cloudflare R2 */
   region: string;
-  /** Access key ID */
   accessKeyId: string;
-  /** Secret access key */
   secretAccessKey: string;
-  /** Bucket name */
   bucket: string;
-  /** Public URL for the bucket (for public file access) */
   publicUrl?: string;
-  /** Default visibility for uploaded files */
   defaultVisibility: Visibility;
-  /** Default expiration time for upload URLs in seconds (default: 3600 = 1 hour) */
   defaultUploadExpiration: number;
-  /** Default expiration time for read URLs in seconds (default: 60 = 1 minute) */
   defaultReadExpiration: number;
 }
 
-/**
- * Module configuration
- */
 export interface Config {
-  /** Default storage configuration (used when no storage parameter is provided) */
   default: StorageConfig;
-  /** Additional named storage configurations for multi-bucket setups */
   storages?: Record<string, StorageConfig>;
 }
 
-let moduleConfig: Config;
+const DefaultStorageKey = 'default';
+let moduleConfig: Config | null = null;
 const s3Clients: Map<string, S3Client> = new Map();
 
-/**
- * Creates an S3 client for a storage configuration
- */
 function createS3Client(config: StorageConfig): S3Client {
   return new S3Client({
     endpoint: config.endpoint,
@@ -53,71 +34,62 @@ function createS3Client(config: StorageConfig): S3Client {
   });
 }
 
-/**
- * Gets the storage configuration by name
- * @param storage - Storage name (undefined for default)
- */
-export function getStorageConfig(storage?: string): StorageConfig {
-  if (!storage) {
-    return moduleConfig.default;
+function ensureModuleConfig(): Config {
+  if (!moduleConfig) {
+    throw new Error('Module config is not initialized');
   }
-
-  const config = moduleConfig.storages?.[storage];
-  if (!config) {
-    throw new Error(`Storage '${storage}' not found in configuration`);
-  }
-
-  return config;
+  return moduleConfig;
 }
 
-/**
- * Gets or creates an S3 client for the specified storage
- * @param storage - Storage name (undefined for default)
- */
-export function getS3Client(storage?: string): S3Client {
-  const key = storage ?? 'default';
-
-  let client = s3Clients.get(key);
-  if (!client) {
-    const config = getStorageConfig(storage);
-    client = createS3Client(config);
-    s3Clients.set(key, client);
+function getNamedStorageConfig(config: Config, storage: string): StorageConfig {
+  const namedStorage = config.storages?.[storage];
+  if (namedStorage === undefined) {
+    throw new Error(`Storage '${storage}' not found in configuration`);
   }
+  return namedStorage;
+}
 
+export function getStorageConfig(storage?: string): StorageConfig {
+  const config = ensureModuleConfig();
+  if (!storage) {
+    return config.default;
+  }
+  return getNamedStorageConfig(config, storage);
+}
+
+export function getS3Client(storage?: string): S3Client {
+  const storageKey = storage ?? DefaultStorageKey;
+  const existingClient = s3Clients.get(storageKey);
+  if (existingClient) {
+    return existingClient;
+  }
+  const config = getStorageConfig(storage);
+  const client = createS3Client(config);
+  s3Clients.set(storageKey, client);
   return client;
 }
 
-/**
- * Module lifecycle: construct
- * Called when the module is loaded with its configuration
- */
-export async function construct(config: Config): Promise<void> {
-  moduleConfig = config;
-
-  // Register the interface implementation
-  ImplementInterface(await import('@ajs.local/file-storage/beta'), await import('./implementations/file-storage/beta'));
-}
-
-/**
- * Module lifecycle: start
- * Called when the module should start
- */
-export function start(): void {}
-
-/**
- * Module lifecycle: stop
- * Called when the module should stop
- */
-export function stop(): void {}
-
-/**
- * Module lifecycle: destroy
- * Called when the module is being unloaded
- */
-export function destroy(): void {
-  // Clean up S3 clients
+function destroyS3Clients(): void {
   for (const client of s3Clients.values()) {
     client.destroy();
   }
   s3Clients.clear();
+}
+
+export async function construct(config: Config): Promise<void> {
+  moduleConfig = config;
+  const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
+    import('@ajs.local/file-storage/beta'),
+    import('./implementations/file-storage/beta'),
+  ]);
+  ImplementInterface(fileStorageInterface, fileStorageImplementation);
+}
+
+export function start(): void {}
+
+export function stop(): void {}
+
+export function destroy(): void {
+  destroyS3Clients();
+  moduleConfig = null;
 }
