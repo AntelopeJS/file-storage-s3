@@ -1,7 +1,7 @@
 /**
  * Visibility mode for files
  */
-export type Visibility = 'public' | 'private';
+export type Visibility = "public" | "private";
 /**
  * Request to create an upload URL
  */
@@ -69,8 +69,8 @@ export interface FileMetadata {
  * Error thrown when upload validation fails
  */
 export declare class UploadValidationError extends Error {
-    readonly code: 'SIZE_EXCEEDED' | 'MIMETYPE_NOT_ALLOWED';
-    constructor(message: string, code: 'SIZE_EXCEEDED' | 'MIMETYPE_NOT_ALLOWED');
+    readonly code: "SIZE_EXCEEDED" | "MIMETYPE_NOT_ALLOWED";
+    constructor(message: string, code: "SIZE_EXCEEDED" | "MIMETYPE_NOT_ALLOWED");
 }
 /**
  * Error thrown when a file is not found

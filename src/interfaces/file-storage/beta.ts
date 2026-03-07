@@ -1,9 +1,9 @@
-import { InterfaceFunction } from '@ajs/core/beta';
+import { InterfaceFunction } from "@ajs/core/beta";
 
 /**
  * Visibility mode for files
  */
-export type Visibility = 'public' | 'private';
+export type Visibility = "public" | "private";
 
 /**
  * Request to create an upload URL
@@ -79,10 +79,10 @@ export interface FileMetadata {
 export class UploadValidationError extends Error {
   constructor(
     message: string,
-    public readonly code: 'SIZE_EXCEEDED' | 'MIMETYPE_NOT_ALLOWED',
+    public readonly code: "SIZE_EXCEEDED" | "MIMETYPE_NOT_ALLOWED",
   ) {
     super(message);
-    this.name = 'UploadValidationError';
+    this.name = "UploadValidationError";
   }
 }
 
@@ -92,7 +92,7 @@ export class UploadValidationError extends Error {
 export class FileNotFoundError extends Error {
   constructor(resourceKey: string) {
     super(`File not found: ${resourceKey}`);
-    this.name = 'FileNotFoundError';
+    this.name = "FileNotFoundError";
   }
 }
 
@@ -108,7 +108,11 @@ export namespace internal {
    */
   export const createUploadUrl =
     InterfaceFunction<
-      (request: UploadRequest, constraints?: UploadConstraints, storage?: string) => Promise<PresignedUploadResponse>
+      (
+        request: UploadRequest,
+        constraints?: UploadConstraints,
+        storage?: string,
+      ) => Promise<PresignedUploadResponse>
     >();
 
   /**
@@ -117,23 +121,38 @@ export namespace internal {
    * For private files: returns a presigned GET URL with short expiration.
    */
   export const createReadUrl =
-    InterfaceFunction<(resourceKey: string, expiresIn?: number, storage?: string) => Promise<PresignedReadResponse>>();
+    InterfaceFunction<
+      (
+        resourceKey: string,
+        expiresIn?: number,
+        storage?: string,
+      ) => Promise<PresignedReadResponse>
+    >();
 
   /**
    * Deletes a file from storage.
    */
-  export const deleteFile = InterfaceFunction<(resourceKey: string, storage?: string) => Promise<void>>();
+  export const deleteFile =
+    InterfaceFunction<
+      (resourceKey: string, storage?: string) => Promise<void>
+    >();
 
   /**
    * Checks if a file exists in storage.
    */
-  export const fileExists = InterfaceFunction<(resourceKey: string, storage?: string) => Promise<boolean>>();
+  export const fileExists =
+    InterfaceFunction<
+      (resourceKey: string, storage?: string) => Promise<boolean>
+    >();
 
   /**
    * Retrieves metadata for a file.
    * Throws FileNotFoundError if the file doesn't exist.
    */
-  export const getFileMetadata = InterfaceFunction<(resourceKey: string, storage?: string) => Promise<FileMetadata>>();
+  export const getFileMetadata =
+    InterfaceFunction<
+      (resourceKey: string, storage?: string) => Promise<FileMetadata>
+    >();
 }
 
 /**
@@ -182,7 +201,10 @@ export function CreateReadUrl(
  * @param resourceKey - The unique identifier of the file to delete
  * @param storage - Optional storage identifier for multi-bucket setups
  */
-export function DeleteFile(resourceKey: string, storage?: string): Promise<void> {
+export function DeleteFile(
+  resourceKey: string,
+  storage?: string,
+): Promise<void> {
   return internal.deleteFile(resourceKey, storage);
 }
 
@@ -193,7 +215,10 @@ export function DeleteFile(resourceKey: string, storage?: string): Promise<void>
  * @param storage - Optional storage identifier for multi-bucket setups
  * @returns true if the file exists, false otherwise
  */
-export function FileExists(resourceKey: string, storage?: string): Promise<boolean> {
+export function FileExists(
+  resourceKey: string,
+  storage?: string,
+): Promise<boolean> {
   return internal.fileExists(resourceKey, storage);
 }
 
@@ -205,6 +230,9 @@ export function FileExists(resourceKey: string, storage?: string): Promise<boole
  * @returns File metadata
  * @throws FileNotFoundError if the file doesn't exist
  */
-export function GetFileMetadata(resourceKey: string, storage?: string): Promise<FileMetadata> {
+export function GetFileMetadata(
+  resourceKey: string,
+  storage?: string,
+): Promise<FileMetadata> {
   return internal.getFileMetadata(resourceKey, storage);
 }

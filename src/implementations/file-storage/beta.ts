@@ -1,28 +1,28 @@
+import { randomUUID } from "node:crypto";
+import { extname } from "node:path";
 import {
-  UploadRequest,
-  UploadConstraints,
-  PresignedUploadResponse,
-  PresignedReadResponse,
-  FileMetadata,
-  UploadValidationError,
+  type FileMetadata,
   FileNotFoundError,
-} from '@ajs.local/file-storage/beta';
-import { getS3Client, getStorageConfig, type StorageConfig } from '../../index';
+  type PresignedReadResponse,
+  type PresignedUploadResponse,
+  type UploadConstraints,
+  type UploadRequest,
+  UploadValidationError,
+} from "@ajs.local/file-storage/beta";
 import {
-  PutObjectCommand,
   DeleteObjectCommand,
-  HeadObjectCommand,
   GetObjectCommand,
-  HeadObjectCommandOutput,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { randomUUID } from 'crypto';
-import { extname } from 'path';
+  HeadObjectCommand,
+  type HeadObjectCommandOutput,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getS3Client, getStorageConfig, type StorageConfig } from "../../index";
 
 const NotFoundStatusCode = 404;
-const DefaultMimetype = 'application/octet-stream';
+const DefaultMimetype = "application/octet-stream";
 const PathTrimRegex = /^\/|\/$/g;
-const MetadataHeaderPrefix = 'x-amz-meta-';
+const MetadataHeaderPrefix = "x-amz-meta-";
 
 interface ErrorMetadata {
   httpStatusCode?: number;
@@ -42,21 +42,24 @@ function generateResourceKey(request: UploadRequest): string {
 
 function normalizePathPrefix(path?: string): string {
   if (!path) {
-    return '';
+    return "";
   }
-  const normalizedPath = path.replace(PathTrimRegex, '');
+  const normalizedPath = path.replace(PathTrimRegex, "");
   if (!normalizedPath) {
-    return '';
+    return "";
   }
   return `${normalizedPath}/`;
 }
 
-function validateUploadRequest(request: UploadRequest, constraints?: UploadConstraints): void {
+function validateUploadRequest(
+  request: UploadRequest,
+  constraints?: UploadConstraints,
+): void {
   const maxSize = constraints?.maxSize;
   if (maxSize !== undefined && request.size > maxSize) {
     throw new UploadValidationError(
       `File size ${request.size} exceeds maximum allowed size ${maxSize}`,
-      'SIZE_EXCEEDED',
+      "SIZE_EXCEEDED",
     );
   }
 
@@ -68,8 +71,8 @@ function validateUploadRequest(request: UploadRequest, constraints?: UploadConst
     return;
   }
   throw new UploadValidationError(
-    `MIME type '${request.mimetype}' is not allowed. Allowed types: ${allowedMimetypes.join(', ')}`,
-    'MIMETYPE_NOT_ALLOWED',
+    `MIME type '${request.mimetype}' is not allowed. Allowed types: ${allowedMimetypes.join(", ")}`,
+    "MIMETYPE_NOT_ALLOWED",
   );
 }
 
@@ -80,38 +83,56 @@ function buildMetadata(request: UploadRequest): Record<string, string> {
   };
 }
 
-function buildMetadataHeaders(metadata: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(metadata).map(([key, value]) => [`${MetadataHeaderPrefix}${key}`, value]));
+function buildMetadataHeaders(
+  metadata: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(metadata).map(([key, value]) => [
+      `${MetadataHeaderPrefix}${key}`,
+      value,
+    ]),
+  );
 }
 
-function buildUploadHeaders(request: UploadRequest, metadata: Record<string, string>): Record<string, string> {
+function buildUploadHeaders(
+  request: UploadRequest,
+  metadata: Record<string, string>,
+): Record<string, string> {
   return {
-    'Content-Type': request.mimetype,
-    'Content-Length': String(request.size),
+    "Content-Type": request.mimetype,
+    "Content-Length": String(request.size),
     ...buildMetadataHeaders(metadata),
   };
 }
 
-function buildUnhoistableHeaders(metadata: Record<string, string>): Set<string> {
-  return new Set(Object.keys(metadata).map((key) => `${MetadataHeaderPrefix}${key}`));
+function buildUnhoistableHeaders(
+  metadata: Record<string, string>,
+): Set<string> {
+  return new Set(
+    Object.keys(metadata).map((key) => `${MetadataHeaderPrefix}${key}`),
+  );
 }
 
 function shouldUsePublicUrl(config: StorageConfig): boolean {
-  return config.defaultVisibility === 'public' && Boolean(config.publicUrl);
+  return config.defaultVisibility === "public" && Boolean(config.publicUrl);
 }
 
-function buildPublicReadUrl(resourceKey: string, config: StorageConfig): string {
+function buildPublicReadUrl(
+  resourceKey: string,
+  config: StorageConfig,
+): string {
   const publicUrl = config.publicUrl as string;
-  return `${publicUrl.replace(/\/$/, '')}/${resourceKey}`;
+  return `${publicUrl.replace(/\/$/, "")}/${resourceKey}`;
 }
 
 function isErrorLike(error: unknown): error is ErrorLike {
-  if (typeof error !== 'object' || !error) {
+  if (typeof error !== "object" || !error) {
     return false;
   }
   const candidate = error as { name?: unknown; $metadata?: unknown };
-  const hasName = typeof candidate.name === 'string';
-  const hasMetadata = typeof candidate.$metadata === 'object' && candidate.$metadata !== null;
+  const hasName = typeof candidate.name === "string";
+  const hasMetadata =
+    typeof candidate.$metadata === "object" && candidate.$metadata !== null;
   return hasName || hasMetadata;
 }
 
@@ -119,13 +140,19 @@ function isNotFoundError(error: unknown): boolean {
   if (!isErrorLike(error)) {
     return false;
   }
-  return error.name === 'NotFound' || error.$metadata?.httpStatusCode === NotFoundStatusCode;
+  return (
+    error.name === "NotFound" ||
+    error.$metadata?.httpStatusCode === NotFoundStatusCode
+  );
 }
 
-function mapHeadObjectToFileMetadata(response: HeadObjectCommandOutput, resourceKey: string): FileMetadata {
+function mapHeadObjectToFileMetadata(
+  response: HeadObjectCommandOutput,
+  resourceKey: string,
+): FileMetadata {
   const metadata = response.Metadata;
   const fileMetadata: FileMetadata = {
-    filename: metadata?.filename ?? '',
+    filename: metadata?.filename ?? "",
     resourceKey,
     size: response.ContentLength ?? 0,
     mimetype: response.ContentType ?? DefaultMimetype,
@@ -199,7 +226,10 @@ export namespace internal {
     };
   };
 
-  export const deleteFile = async (resourceKey: string, storage?: string): Promise<void> => {
+  export const deleteFile = async (
+    resourceKey: string,
+    storage?: string,
+  ): Promise<void> => {
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
 
@@ -211,7 +241,10 @@ export namespace internal {
     await client.send(command);
   };
 
-  export const fileExists = async (resourceKey: string, storage?: string): Promise<boolean> => {
+  export const fileExists = async (
+    resourceKey: string,
+    storage?: string,
+  ): Promise<boolean> => {
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
 
@@ -231,7 +264,10 @@ export namespace internal {
     }
   };
 
-  export const getFileMetadata = async (resourceKey: string, storage?: string): Promise<FileMetadata> => {
+  export const getFileMetadata = async (
+    resourceKey: string,
+    storage?: string,
+  ): Promise<FileMetadata> => {
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
 
