@@ -1,6 +1,6 @@
-import { ImplementInterface } from '@ajs/core/beta';
-import { S3Client } from '@aws-sdk/client-s3';
-import { Visibility } from '@ajs.local/file-storage/beta';
+import { ImplementInterface } from "@ajs/core/beta";
+import type { Visibility } from "@ajs.local/file-storage/beta";
+import { S3Client } from "@aws-sdk/client-s3";
 
 export interface StorageConfig {
   endpoint: string;
@@ -19,7 +19,7 @@ export interface Config {
   storages?: Record<string, StorageConfig>;
 }
 
-const DefaultStorageKey = 'default';
+const DefaultStorageKey = "default";
 let moduleConfig: Config | null = null;
 const s3Clients: Map<string, S3Client> = new Map();
 
@@ -36,7 +36,7 @@ function createS3Client(config: StorageConfig): S3Client {
 
 function ensureModuleConfig(): Config {
   if (!moduleConfig) {
-    throw new Error('Module config is not initialized');
+    throw new Error("Module config is not initialized");
   }
   return moduleConfig;
 }
@@ -79,10 +79,10 @@ function destroyS3Clients(): void {
 export async function construct(config: Config): Promise<void> {
   moduleConfig = config;
   const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
-    import('@ajs.local/file-storage/beta'),
-    import('./implementations/file-storage/beta'),
+    import("@ajs.local/file-storage/beta"),
+    import("./implementations/file-storage/beta"),
   ]);
-  ImplementInterface(fileStorageInterface, fileStorageImplementation);
+  await ImplementInterface(fileStorageInterface, fileStorageImplementation);
 }
 
 export function start(): void {}
