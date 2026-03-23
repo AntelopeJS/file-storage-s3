@@ -7,7 +7,7 @@ import {
   FileNotFoundError,
   GetFileMetadata,
   UploadValidationError,
-} from "@ajs.local/file-storage/beta";
+} from "@antelopejs/interface-file-storage";
 import {
   DeleteObjectCommand,
   HeadObjectCommand,

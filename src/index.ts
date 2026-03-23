@@ -1,5 +1,5 @@
-import { ImplementInterface } from "@ajs/core/beta";
-import type { Visibility } from "@ajs.local/file-storage/beta";
+import { ImplementInterface } from "@antelopejs/interface-core";
+import type { Visibility } from "@antelopejs/interface-file-storage";
 import { S3Client } from "@aws-sdk/client-s3";
 
 export interface StorageConfig {
@@ -79,10 +79,10 @@ function destroyS3Clients(): void {
 export async function construct(config: Config): Promise<void> {
   moduleConfig = config;
   const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
-    import("@ajs.local/file-storage/beta"),
-    import("./implementations/file-storage/beta"),
+    import("@antelopejs/interface-file-storage"),
+    import("./implementations/file-storage"),
   ]);
-  await ImplementInterface(fileStorageInterface, fileStorageImplementation);
+  void ImplementInterface(fileStorageInterface, fileStorageImplementation);
 }
 
 export function start(): void {}
