@@ -121,9 +121,11 @@ async function setupStagingLifecycleForEntry(
 }
 
 async function setupStagingLifecycles(config: Config): Promise<void> {
-  for (const entry of collectStorageEntries(config)) {
-    await setupStagingLifecycleForEntry(entry);
-  }
+  await Promise.all(
+    collectStorageEntries(config).map((entry) =>
+      setupStagingLifecycleForEntry(entry),
+    ),
+  );
 }
 
 export async function construct(config: Config): Promise<void> {

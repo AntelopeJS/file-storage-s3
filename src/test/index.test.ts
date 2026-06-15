@@ -27,7 +27,7 @@ import { applyStagingLifecycleRule } from "../lifecycle";
 const ExistingResourceKey = "folder/existing.txt";
 const MissingResourceKey = "folder/missing.txt";
 const MetadataOnlyResourceKey = "folder/metadata-only.txt";
-const StagedResourceKey = "tmp/uploads/staged.txt";
+const StagedResourceKey = `${STAGING_PREFIX}uploads/staged.txt`;
 const PromotedResourceKey = "uploads/staged.txt";
 const UploadPath = "/uploads/";
 const PublicStorage = "public-assets";
@@ -222,6 +222,13 @@ describe("file-storage interface", () => {
 
     assert.equal(result.resourceKey, ExistingResourceKey);
     assert.equal(await FileExists(ExistingResourceKey), true);
+  });
+
+  it("throws when promoting a staged key that no longer exists", async () => {
+    await assert.rejects(
+      () => PromoteFile(`${STAGING_PREFIX}uploads/ghost.txt`),
+      (error: unknown) => error instanceof FileNotFoundError,
+    );
   });
 
   it("is safe to promote twice", async () => {

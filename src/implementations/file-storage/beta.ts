@@ -3,11 +3,8 @@ import { extname } from "node:path";
 import {
   type FileMetadata,
   FileNotFoundError,
-  isStagedKey,
   type PresignedReadResponse,
   type PresignedUploadResponse,
-  type PromoteFileResponse,
-  stripStagingPrefix,
   toStagedKey,
   type UploadConstraints,
   type UploadRequest,
@@ -332,17 +329,5 @@ export namespace internal {
     await client.send(
       new DeleteObjectCommand({ Bucket: config.bucket, Key: sourceKey }),
     );
-  };
-
-  export const promoteFile = async (
-    resourceKey: string,
-    storage?: string,
-  ): Promise<PromoteFileResponse> => {
-    if (!isStagedKey(resourceKey)) {
-      return { resourceKey };
-    }
-    const destKey = stripStagingPrefix(resourceKey);
-    await moveFile(resourceKey, destKey, storage);
-    return { resourceKey: destKey };
   };
 }
