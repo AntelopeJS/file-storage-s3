@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.0
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.0.2...v0.1.0)
+
+### 🚀 Enhancements
+
+- Staging upload + file promotion ([#7](https://github.com/AntelopeJS/file-storage-s3/pull/7))
+
+### 🏡 Chore
+
+- Update dependencies ([e10ea02](https://github.com/AntelopeJS/file-storage-s3/commit/e10ea02))
+
+### ❤️ Contributors
+
+- Fabrice Cst <fabrice@altab.be>
+- Antony Rizzitelli <upd4ting@gmail.com>
+
 ## v0.0.2
 
 
