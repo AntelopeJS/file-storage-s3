@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@antelopejs/interface-core": "^0.0.2",
-    "@antelopejs/interface-file-storage": "^0.0.2",
+    "@antelopejs/interface-file-storage": "^0.1.0",
     "@aws-sdk/client-s3": "^3.1016.0",
     "@aws-sdk/s3-request-presigner": "^3.1016.0"
   },
