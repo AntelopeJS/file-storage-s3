@@ -6,20 +6,32 @@ import {
   FileExists,
   FileNotFoundError,
   GetFileMetadata,
+  MoveFile,
+  PromoteFile,
+  STAGING_PREFIX,
   UploadValidationError,
 } from "@antelopejs/interface-file-storage";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
+  GetBucketLifecycleConfigurationCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
+  type LifecycleRule,
+  PutBucketLifecycleConfigurationCommand,
+  type PutBucketLifecycleConfigurationCommandInput,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { applyStagingLifecycleRule } from "../lifecycle";
 
 const ExistingResourceKey = "folder/existing.txt";
 const MissingResourceKey = "folder/missing.txt";
 const MetadataOnlyResourceKey = "folder/metadata-only.txt";
+const StagedResourceKey = "tmp/uploads/staged.txt";
+const PromotedResourceKey = "uploads/staged.txt";
 const UploadPath = "/uploads/";
 const PublicStorage = "public-assets";
+const DefaultBucket = "private-bucket";
 
 interface StoredFile {
   size: number;
@@ -33,7 +45,7 @@ interface NotFoundErrorShape extends Error {
 }
 
 type S3SendMethod = S3Client["send"];
-type SendCommand = DeleteObjectCommand | HeadObjectCommand;
+type SendCommand = DeleteObjectCommand | HeadObjectCommand | CopyObjectCommand;
 
 interface NotFoundMetadata {
   httpStatusCode: number;
@@ -170,6 +182,69 @@ describe("file-storage interface", () => {
     assert.equal(metadata.filename, "");
     assert.deepEqual(metadata.metadata, { source: "imported" });
   });
+
+  it("places staged uploads under the staging prefix preserving the path", async () => {
+    const response = await CreateUploadUrl({
+      filename: "draft.png",
+      size: 64,
+      mimetype: "image/png",
+      path: UploadPath,
+      staging: true,
+    });
+
+    assert.ok(response.resourceKey.startsWith(`${STAGING_PREFIX}uploads/`));
+    assert.ok(response.resourceKey.endsWith(".png"));
+  });
+
+  it("keeps non-staged uploads out of the staging prefix", async () => {
+    const response = await CreateUploadUrl({
+      filename: "final.png",
+      size: 64,
+      mimetype: "image/png",
+      path: UploadPath,
+    });
+
+    assert.equal(response.resourceKey.startsWith(STAGING_PREFIX), false);
+  });
+
+  it("promotes a staged file and returns the clean key", async () => {
+    seedStagedFile();
+
+    const result = await PromoteFile(StagedResourceKey);
+
+    assert.equal(result.resourceKey, PromotedResourceKey);
+    assert.equal(await FileExists(PromotedResourceKey), true);
+    assert.equal(await FileExists(StagedResourceKey), false);
+  });
+
+  it("is a no-op when promoting a non-staged key", async () => {
+    const result = await PromoteFile(ExistingResourceKey);
+
+    assert.equal(result.resourceKey, ExistingResourceKey);
+    assert.equal(await FileExists(ExistingResourceKey), true);
+  });
+
+  it("is safe to promote twice", async () => {
+    seedStagedFile();
+
+    const first = await PromoteFile(StagedResourceKey);
+    const second = await PromoteFile(StagedResourceKey);
+    const third = await PromoteFile(PromotedResourceKey);
+
+    assert.equal(first.resourceKey, PromotedResourceKey);
+    assert.equal(second.resourceKey, PromotedResourceKey);
+    assert.equal(third.resourceKey, PromotedResourceKey);
+    assert.equal(await FileExists(PromotedResourceKey), true);
+  });
+
+  it("moves an object to a new key with MoveFile", async () => {
+    seedStagedFile();
+
+    await MoveFile(StagedResourceKey, PromotedResourceKey);
+
+    assert.equal(await FileExists(PromotedResourceKey), true);
+    assert.equal(await FileExists(StagedResourceKey), false);
+  });
 });
 
 function createMockSendMethod(): S3SendMethod {
@@ -181,6 +256,9 @@ function createMockSendMethod(): S3SendMethod {
       if (command instanceof DeleteObjectCommand) {
         return Promise.resolve(handleDeleteObjectCommand(command));
       }
+      if (command instanceof CopyObjectCommand) {
+        return Promise.resolve(handleCopyObjectCommand(command));
+      }
     } catch (error: unknown) {
       return Promise.reject(error);
     }
@@ -188,6 +266,28 @@ function createMockSendMethod(): S3SendMethod {
       new Error(`Unexpected S3 command: ${String(command)}`),
     );
   }) as S3SendMethod;
+}
+
+function parseCopySource(copySource: string): string {
+  const keyPart = copySource.slice(copySource.indexOf("/") + 1);
+  return keyPart.split("/").map(decodeURIComponent).join("/");
+}
+
+function handleCopyObjectCommand(
+  command: CopyObjectCommand,
+): Record<string, never> {
+  const destKey = getCommandResourceKey(command);
+  const copySource = command.input.CopySource;
+  if (!copySource) {
+    throw new Error("Missing CopySource in S3 copy command input");
+  }
+  const sourceKey = parseCopySource(copySource);
+  const storedFile = storageByResourceKey.get(sourceKey);
+  if (!storedFile) {
+    throw createNotFoundError();
+  }
+  storageByResourceKey.set(destKey, storedFile);
+  return {};
 }
 
 function handleHeadObjectCommand(
@@ -253,3 +353,76 @@ function resetStorage(): void {
     },
   });
 }
+
+function seedStagedFile(): void {
+  storageByResourceKey.set(StagedResourceKey, {
+    size: 16,
+    mimetype: "text/plain",
+    lastModified: new Date("2026-01-03T00:00:00.000Z"),
+    metadata: { filename: "staged.txt" },
+  });
+}
+
+interface LifecycleCapture {
+  input?: PutBucketLifecycleConfigurationCommandInput;
+}
+
+function createLifecycleMockClient(
+  existingRules: LifecycleRule[],
+  capture: LifecycleCapture,
+): S3Client {
+  const send = (command: unknown): Promise<unknown> => {
+    if (command instanceof GetBucketLifecycleConfigurationCommand) {
+      return Promise.resolve({ Rules: existingRules });
+    }
+    if (command instanceof PutBucketLifecycleConfigurationCommand) {
+      capture.input = command.input;
+      return Promise.resolve({});
+    }
+    return Promise.reject(new Error("Unexpected lifecycle command"));
+  };
+  return { send } as unknown as S3Client;
+}
+
+describe("staging lifecycle rule", () => {
+  it("targets only the staging prefix and preserves existing rules", async () => {
+    const existingRule: LifecycleRule = {
+      ID: "archive-cleanup",
+      Status: "Enabled",
+      Filter: { Prefix: "archive/" },
+      Expiration: { Days: 30 },
+    };
+    const capture: LifecycleCapture = {};
+    const client = createLifecycleMockClient([existingRule], capture);
+
+    await applyStagingLifecycleRule(client, DefaultBucket, 2);
+
+    const rules = capture.input?.LifecycleConfiguration?.Rules ?? [];
+    const stagingRule = rules.find(
+      (rule) => rule.Filter?.Prefix === STAGING_PREFIX,
+    );
+    assert.ok(rules.some((rule) => rule.ID === "archive-cleanup"));
+    assert.ok(stagingRule);
+    assert.equal(stagingRule?.Expiration?.Days, 2);
+  });
+
+  it("replaces a previous staging rule instead of duplicating it", async () => {
+    const previousStagingRule: LifecycleRule = {
+      ID: "antelopejs-staging-expiration",
+      Status: "Enabled",
+      Filter: { Prefix: STAGING_PREFIX },
+      Expiration: { Days: 7 },
+    };
+    const capture: LifecycleCapture = {};
+    const client = createLifecycleMockClient([previousStagingRule], capture);
+
+    await applyStagingLifecycleRule(client, DefaultBucket, 1);
+
+    const rules = capture.input?.LifecycleConfiguration?.Rules ?? [];
+    const stagingRules = rules.filter(
+      (rule) => rule.Filter?.Prefix === STAGING_PREFIX,
+    );
+    assert.equal(stagingRules.length, 1);
+    assert.equal(stagingRules[0]?.Expiration?.Days, 1);
+  });
+});

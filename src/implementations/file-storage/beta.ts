@@ -3,13 +3,18 @@ import { extname } from "node:path";
 import {
   type FileMetadata,
   FileNotFoundError,
+  isStagedKey,
   type PresignedReadResponse,
   type PresignedUploadResponse,
+  type PromoteFileResponse,
+  stripStagingPrefix,
+  toStagedKey,
   type UploadConstraints,
   type UploadRequest,
   UploadValidationError,
 } from "@antelopejs/interface-file-storage";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
@@ -37,7 +42,8 @@ function generateResourceKey(request: UploadRequest): string {
   const fileExtension = extname(request.filename);
   const resourceId = randomUUID();
   const pathPrefix = normalizePathPrefix(request.path);
-  return `${pathPrefix}${resourceId}${fileExtension}`;
+  const baseKey = `${pathPrefix}${resourceId}${fileExtension}`;
+  return request.staging ? toStagedKey(baseKey) : baseKey;
 }
 
 function normalizePathPrefix(path?: string): string {
@@ -164,6 +170,16 @@ function mapHeadObjectToFileMetadata(
   return fileMetadata;
 }
 
+const CopySourceSeparator = "/";
+
+function buildCopySource(bucket: string, sourceKey: string): string {
+  const encodedKey = sourceKey
+    .split(CopySourceSeparator)
+    .map(encodeURIComponent)
+    .join(CopySourceSeparator);
+  return `${bucket}/${encodedKey}`;
+}
+
 export namespace internal {
   export const createUploadUrl = async (
     request: UploadRequest,
@@ -285,5 +301,48 @@ export namespace internal {
       }
       throw error;
     }
+  };
+
+  export const moveFile = async (
+    sourceKey: string,
+    destKey: string,
+    storage?: string,
+  ): Promise<void> => {
+    if (sourceKey === destKey) {
+      return;
+    }
+    const client = getS3Client(storage);
+    const config = getStorageConfig(storage);
+
+    try {
+      await client.send(
+        new CopyObjectCommand({
+          Bucket: config.bucket,
+          Key: destKey,
+          CopySource: buildCopySource(config.bucket, sourceKey),
+        }),
+      );
+    } catch (error: unknown) {
+      if (isNotFoundError(error)) {
+        return;
+      }
+      throw error;
+    }
+
+    await client.send(
+      new DeleteObjectCommand({ Bucket: config.bucket, Key: sourceKey }),
+    );
+  };
+
+  export const promoteFile = async (
+    resourceKey: string,
+    storage?: string,
+  ): Promise<PromoteFileResponse> => {
+    if (!isStagedKey(resourceKey)) {
+      return { resourceKey };
+    }
+    const destKey = stripStagingPrefix(resourceKey);
+    await moveFile(resourceKey, destKey, storage);
+    return { resourceKey: destKey };
   };
 }
