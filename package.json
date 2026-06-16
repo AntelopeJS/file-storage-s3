@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/file-storage-s3",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A file storage module that implements the file-storage interface of AntelopeJS with S3-compatible backends (AWS S3, Cloudflare R2)",
   "repository": {
     "type": "git",
