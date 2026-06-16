@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@antelopejs/interface-core':
-        specifier: ^0.0.2
-        version: 0.0.2
+        specifier: ^0.0.5
+        version: 0.0.5
       '@antelopejs/interface-file-storage':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.1.1
+        version: 0.1.1(@antelopejs/interface-core@0.0.5)
       '@aws-sdk/client-s3':
         specifier: ^3.1016.0
         version: 3.1016.0
@@ -48,14 +48,13 @@ importers:
 
 packages:
 
-  '@antelopejs/interface-core@0.0.2':
-    resolution: {integrity: sha512-CmtOJvSCRj20GOQhrE0PpHybGaW1G1lrepiKHVJa/bclhrvFYgHV0MH84TMpMOHESQT/+wuup007tfXAwaI+Eg==}
+  '@antelopejs/interface-core@0.0.5':
+    resolution: {integrity: sha512-4H6hpFfiK2+DE8vL2mEtPbq1WNch9lt40QNr9KjBrOAtnuq/zMfIlzhbEsda39m+FVkMWXfUYoVolRogVKCLIQ==}
 
-  '@antelopejs/interface-core@0.0.3':
-    resolution: {integrity: sha512-Kw3ffGiQHKJ88AqdFfPuwzl+v0w6QqzqiqnLY7M0MYYw+YwdRNXh5WAJkep0ePudR9leLGXPU//FYizNaDG6yw==}
-
-  '@antelopejs/interface-file-storage@0.1.0':
-    resolution: {integrity: sha512-gwJuwrEsVosU+Xhckwm3a3gILKXZL6tMtmaNbHrraJTj+9kG2JNpBeuDpF4DYa6WV+17GDWXeRFnTIcEuI6iXw==}
+  '@antelopejs/interface-file-storage@0.1.1':
+    resolution: {integrity: sha512-zVSJ0psFsO8rfhhE0Fn7Syl5aSCyiGsrhp6xOwPQOFMDo2AyRm66fr0HrujowsIc5X7L9Sc/Y5/VRa6kujyUVg==}
+    peerDependencies:
+      '@antelopejs/interface-core': '>=0.0.3 <1.0.0'
 
   '@aws-crypto/crc32@5.2.0':
     resolution: {integrity: sha512-nLbCWqQNgUiwwtFsen1AdzAtvuLRsQS8rYgMuxCrdKf9kOssamGLuPwyTY9wyYblNr9+1XM8v6zoDTPPSIeANg==}
@@ -1690,17 +1689,13 @@ packages:
 
 snapshots:
 
-  '@antelopejs/interface-core@0.0.2':
+  '@antelopejs/interface-core@0.0.5':
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-core@0.0.3':
+  '@antelopejs/interface-file-storage@0.1.1(@antelopejs/interface-core@0.0.5)':
     dependencies:
-      reflect-metadata: 0.2.2
-
-  '@antelopejs/interface-file-storage@0.1.0':
-    dependencies:
-      '@antelopejs/interface-core': 0.0.3
+      '@antelopejs/interface-core': 0.0.5
 
   '@aws-crypto/crc32@5.2.0':
     dependencies:
