@@ -40,8 +40,8 @@
     "test": "src/test/antelope.test.ts"
   },
   "dependencies": {
-    "@antelopejs/interface-core": "^0.0.5",
-    "@antelopejs/interface-file-storage": "^0.1.1",
+    "@antelopejs/interface-core": ">=0.0.5 <1.0.0",
+    "@antelopejs/interface-file-storage": ">=0.1.1 <1.0.0",
     "@aws-sdk/client-s3": "^3.1016.0",
     "@aws-sdk/s3-request-presigner": "^3.1016.0"
   },
