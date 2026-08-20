@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@antelopejs/interface-core':
-        specifier: ^0.0.5
-        version: 0.0.5
+        specifier: '>=0.0.5 <1.0.0'
+        version: 0.0.11
       '@antelopejs/interface-file-storage':
-        specifier: ^0.1.1
-        version: 0.1.1(@antelopejs/interface-core@0.0.5)
+        specifier: '>=0.1.1 <1.0.0'
+        version: 0.1.2(@antelopejs/interface-core@0.0.11)
       '@aws-sdk/client-s3':
         specifier: ^3.1016.0
         version: 3.1016.0
@@ -48,11 +48,11 @@ importers:
 
 packages:
 
-  '@antelopejs/interface-core@0.0.5':
-    resolution: {integrity: sha512-4H6hpFfiK2+DE8vL2mEtPbq1WNch9lt40QNr9KjBrOAtnuq/zMfIlzhbEsda39m+FVkMWXfUYoVolRogVKCLIQ==}
+  '@antelopejs/interface-core@0.0.11':
+    resolution: {integrity: sha512-eKE3F9XY0eIzdLBXms8QAY4BHmA8+XXZnta0vZ411q9GiSbI2S1Q3lfYzmnXU4ZK9i+/SIYPplOsA02gIdxODg==}
 
-  '@antelopejs/interface-file-storage@0.1.1':
-    resolution: {integrity: sha512-zVSJ0psFsO8rfhhE0Fn7Syl5aSCyiGsrhp6xOwPQOFMDo2AyRm66fr0HrujowsIc5X7L9Sc/Y5/VRa6kujyUVg==}
+  '@antelopejs/interface-file-storage@0.1.2':
+    resolution: {integrity: sha512-8MinHEip+jWy6BJc/9AzU1il1YYO81Kf0Ewe3WHDWk7CWj+/s/Z7NKy6Mmn/fRlv9r18EMag0KEJxBzmmqqnNw==}
     peerDependencies:
       '@antelopejs/interface-core': '>=0.0.3 <1.0.0'
 
@@ -1689,13 +1689,13 @@ packages:
 
 snapshots:
 
-  '@antelopejs/interface-core@0.0.5':
+  '@antelopejs/interface-core@0.0.11':
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-file-storage@0.1.1(@antelopejs/interface-core@0.0.5)':
+  '@antelopejs/interface-file-storage@0.1.2(@antelopejs/interface-core@0.0.11)':
     dependencies:
-      '@antelopejs/interface-core': 0.0.5
+      '@antelopejs/interface-core': 0.0.11
 
   '@aws-crypto/crc32@5.2.0':
     dependencies:
