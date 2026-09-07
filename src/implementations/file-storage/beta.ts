@@ -1,5 +1,14 @@
-import { randomUUID } from "node:crypto";
 import { extname } from "node:path";
+import { randomUUID } from "node:crypto";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  HeadObjectCommand,
+  type HeadObjectCommandOutput,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import {
   type FileMetadata,
   FileNotFoundError,
@@ -10,15 +19,7 @@ import {
   type UploadRequest,
   UploadValidationError,
 } from "@antelopejs/interface-file-storage";
-import {
-  CopyObjectCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-  HeadObjectCommand,
-  type HeadObjectCommandOutput,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
 import { getS3Client, getStorageConfig, type StorageConfig } from "../../index";
 
 const NotFoundStatusCode = 404;
@@ -82,7 +83,7 @@ function validateUploadRequest(
 function buildMetadata(request: UploadRequest): Record<string, string> {
   return {
     filename: request.filename,
-    ...(request.metadata ?? {}),
+    ...request.metadata,
   };
 }
 

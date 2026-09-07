@@ -1,7 +1,8 @@
-import { ImplementInterface } from "@antelopejs/interface-core";
-import { Logging } from "@antelopejs/interface-core/logging";
-import type { Visibility } from "@antelopejs/interface-file-storage";
 import { S3Client } from "@aws-sdk/client-s3";
+import { Logging } from "@antelopejs/interface-core/logging";
+import { ImplementInterface } from "@antelopejs/interface-core";
+import type { Visibility } from "@antelopejs/interface-file-storage";
+
 import { applyStagingLifecycleRule } from "./lifecycle";
 
 export interface StorageConfig {
