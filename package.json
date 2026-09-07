@@ -2,28 +2,27 @@
   "name": "@antelopejs/file-storage-s3",
   "version": "0.1.2",
   "description": "A file storage module that implements the file-storage interface of AntelopeJS with S3-compatible backends (AWS S3, Cloudflare R2)",
+  "keywords": [
+    "antelopejs",
+    "cloudflare-r2",
+    "file-storage",
+    "presigned-url",
+    "s3",
+    "upload"
+  ],
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/AntelopeJS/file-storage-s3.git"
   },
-  "keywords": [
-    "antelopejs",
-    "file-storage",
-    "s3",
-    "cloudflare-r2",
-    "presigned-url",
-    "upload"
-  ],
-  "main": "dist/index.js",
   "files": [
     "dist"
   ],
+  "main": "dist/index.js",
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
-  "license": "Apache-2.0",
-  "packageManager": "pnpm@10.6.5",
   "scripts": {
     "build": "rimraf dist && tsc",
     "dev": "ajs project run -w -p playground",
@@ -35,12 +34,6 @@
     "test": "pnpm run build && ajs module test .",
     "format:check": "oxfmt --check .",
     "knip": "knip"
-  },
-  "antelopeJs": {
-    "implements": [
-      "@antelopejs/interface-file-storage"
-    ],
-    "test": "src/test/antelope.test.ts"
   },
   "dependencies": {
     "@antelopejs/interface-core": ">=0.0.5 <1.0.0",
@@ -61,5 +54,12 @@
     "release-it-changelogen": "^0.1.0",
     "rimraf": "^6.1.3",
     "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.6.5",
+  "antelopeJs": {
+    "implements": [
+      "@antelopejs/interface-file-storage"
+    ],
+    "test": "src/test/antelope.test.ts"
   }
 }
