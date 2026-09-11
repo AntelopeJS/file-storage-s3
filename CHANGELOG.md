@@ -1,6 +1,5 @@
 # Changelog
 
-
 ## v0.1.2
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.1...v0.1.2)
@@ -27,7 +26,6 @@
 - Antony Rizzitelli <upd4ting@gmail.com>
 
 ## v0.0.2
-
 
 ### 🩹 Fixes
 
@@ -60,4 +58,3 @@
 
 - Antony Rizzitelli <upd4ting@gmail.com>
 - Glastis ([@Glastis](http://github.com/Glastis))
-

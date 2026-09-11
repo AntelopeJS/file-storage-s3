@@ -22,6 +22,7 @@ import {
   type PutBucketLifecycleConfigurationCommandInput,
   S3Client,
 } from "@aws-sdk/client-s3";
+
 import { applyStagingLifecycleRule } from "../lifecycle";
 
 const ExistingResourceKey = "folder/existing.txt";
