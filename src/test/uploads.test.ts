@@ -5,8 +5,39 @@ import { uploadSignature } from "./upload-signature";
 
 const TestSecret = "test-secret-key";
 const ConditionHeader = "If-None-Match";
+const OriginHeader = "x-amz-meta-antelope-promotion-origin";
 
 describe("create-only upload signatures", () => {
+  it("strips forged promotion metadata case-insensitively and signs a non-proof sentinel", async () => {
+    const response = await CreateUploadUrl({
+      filename: "forged.txt",
+      mimetype: "text/plain",
+      size: 3,
+      metadata: {
+        "ANTELOPE-PROMOTION-ORIGIN": "forged",
+        "antelope-promotion-extra": "forged",
+        custom: "kept",
+      },
+    });
+    assert.equal(response.headers[OriginHeader], "unpromoted");
+    assert.equal(
+      response.headers["x-amz-meta-antelope-promotion-extra"],
+      undefined,
+    );
+    assert.equal(response.headers["x-amz-meta-custom"], "kept");
+    const url = new URL(response.uploadUrl);
+    const expected = url.searchParams.get("X-Amz-Signature");
+    assert.equal(uploadSignature(url, response.headers, TestSecret), expected);
+    assert.notEqual(
+      uploadSignature(
+        url,
+        { ...response.headers, [OriginHeader]: "forged" },
+        TestSecret,
+      ),
+      expected,
+    );
+  });
+
   it("requires the signed create-only header for ordinary and staged uploads", async () => {
     for (const staging of [false, true]) {
       const response = await CreateUploadUrl({

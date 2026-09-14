@@ -1,3 +1,4 @@
+import { Readable } from "node:stream";
 import assert from "node:assert/strict";
 import {
   CreateReadUrl,
@@ -15,11 +16,13 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetBucketLifecycleConfigurationCommand,
+  GetObjectCommand,
   GetPublicAccessBlockCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
   type LifecycleRule,
   PutBucketLifecycleConfigurationCommand,
+  PutObjectCommand,
   type PutBucketLifecycleConfigurationCommandInput,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -34,6 +37,7 @@ const PromotedResourceKey = "uploads/staged.txt";
 const UploadPath = "/uploads/";
 const PublicStorage = "public-assets";
 const DefaultBucket = "private-bucket";
+const PreconditionFailedStatus = 412;
 
 interface StoredFile {
   size: number;
@@ -47,7 +51,16 @@ interface NotFoundErrorShape extends Error {
 }
 
 type S3SendMethod = S3Client["send"];
-type SendCommand = DeleteObjectCommand | HeadObjectCommand | CopyObjectCommand;
+type SendCommand =
+  | DeleteObjectCommand
+  | HeadObjectCommand
+  | CopyObjectCommand
+  | GetObjectCommand
+  | PutObjectCommand;
+
+interface SourceResponse extends HeadObjectCommandOutput {
+  Body: Readable;
+}
 
 interface NotFoundMetadata {
   httpStatusCode: number;
@@ -296,6 +309,12 @@ function createMockSendMethod(): S3SendMethod {
       if (command instanceof HeadObjectCommand) {
         return Promise.resolve(handleHeadObjectCommand(command));
       }
+      if (command instanceof GetObjectCommand) {
+        return Promise.resolve(handleGetObjectCommand(command));
+      }
+      if (command instanceof PutObjectCommand) {
+        return handlePutObjectCommand(command);
+      }
       if (command instanceof GetPublicAccessBlockCommand) {
         return Promise.resolve({
           PublicAccessBlockConfiguration: {
@@ -326,6 +345,35 @@ function parseCopySource(copySource: string): string {
   return keyPart.split("/").map(decodeURIComponent).join("/");
 }
 
+function handleGetObjectCommand(command: GetObjectCommand): SourceResponse {
+  const head = handleHeadObjectCommand(new HeadObjectCommand(command.input));
+  return { ...head, Body: Readable.from([Buffer.alloc(head.ContentLength!)]) };
+}
+
+async function handlePutObjectCommand(
+  command: PutObjectCommand,
+): Promise<Record<string, never>> {
+  const key = getCommandResourceKey(command);
+  assert.equal(command.input.IfNoneMatch, "*");
+  assert.ok(command.input.Body instanceof Readable);
+  let size = 0;
+  for await (const chunk of command.input.Body)
+    size += Buffer.byteLength(chunk);
+  assert.equal(size, command.input.ContentLength);
+  if (storageByResourceKey.has(key)) {
+    throw Object.assign(new Error("Precondition failed"), {
+      $metadata: { httpStatusCode: PreconditionFailedStatus },
+    });
+  }
+  storageByResourceKey.set(key, {
+    size,
+    mimetype: command.input.ContentType!,
+    lastModified: new Date(),
+    metadata: command.input.Metadata ?? {},
+  });
+  return {};
+}
+
 function handleCopyObjectCommand(
   command: CopyObjectCommand,
 ): Record<string, never> {
@@ -352,6 +400,7 @@ function handleHeadObjectCommand(
     throw createNotFoundError();
   }
   const output: HeadObjectCommandOutput = {
+    ETag: '"mock-etag"',
     ContentLength: storedFile.size,
     ContentType: storedFile.mimetype,
     LastModified: storedFile.lastModified,

@@ -14,10 +14,13 @@ import {
 import {
   type FileMetadata,
   FileNotFoundError,
+  FileConflictError,
   isStagedKey,
   type PresignedReadResponse,
   type PresignedUploadResponse,
+  type PromoteFileResponse,
   STAGING_PREFIX,
+  stripStagingPrefix,
   toStagedKey,
   type UploadConstraints,
   type UploadRequest,
@@ -25,6 +28,7 @@ import {
   type Visibility,
 } from "@antelopejs/interface-file-storage";
 
+import { promote, uploadMetadata } from "./promotion";
 import { getS3Client, getStorageConfig, type StorageConfig } from "../../index";
 
 const NotFoundStatusCode = 404;
@@ -148,10 +152,10 @@ function validateUploadRequest(
 }
 
 function buildMetadata(request: UploadRequest): Record<string, string> {
-  return {
+  return uploadMetadata({
     filename: request.filename,
     ...request.metadata,
-  };
+  });
 }
 
 function buildMetadataHeaders(
@@ -253,6 +257,22 @@ function buildCopySource(bucket: string, sourceKey: string): string {
 }
 
 export namespace internal {
+  export const promoteFile = async (
+    resourceKey: string,
+    storage?: string,
+  ): Promise<PromoteFileResponse> => {
+    if (!isStagedKey(resourceKey)) return { resourceKey };
+    const destinationKey = stripStagingPrefix(resourceKey);
+    const client = getS3Client(storage);
+    const config = getStorageConfig(storage);
+    const bucket = await bucketForKey(resourceKey, config, client);
+    if (bucket !== (await bucketForKey(destinationKey, config, client))) {
+      throw new FileConflictError(destinationKey);
+    }
+    await promote({ client, bucket, sourceKey: resourceKey, destinationKey });
+    return { resourceKey: destinationKey };
+  };
+
   export const createUploadUrl = async (
     request: UploadRequest,
     constraints?: UploadConstraints,
