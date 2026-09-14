@@ -3,10 +3,7 @@ import { Logging } from "@antelopejs/interface-core/logging";
 import { ImplementInterface } from "@antelopejs/interface-core";
 import type { Visibility } from "@antelopejs/interface-file-storage";
 
-import {
-  applyAttachmentLifecycleRule,
-  applyStagingLifecycleRule,
-} from "./lifecycle";
+import { applyStagingLifecycleRule } from "./lifecycle";
 
 export interface StorageConfig {
   endpoint: string;
@@ -115,34 +112,29 @@ async function setupStagingLifecycleForEntry(
     return;
   }
   try {
-    await applyStagingLifecycleRule(
-      getS3Client(entry.storage),
+    const buckets = [
       entry.config.bucket,
-      expirationDays,
+      ...(entry.config.attachmentPrivateBucket
+        ? [entry.config.attachmentPrivateBucket]
+        : []),
+    ];
+    await Promise.all(
+      buckets.map((bucket) =>
+        applyStagingLifecycleRule(
+          getS3Client(entry.storage),
+          bucket,
+          expirationDays,
+        ),
+      ),
     );
   } catch (error: unknown) {
     Logging.Warn(StagingLifecycleErrorPrefix, entry.config.bucket, error);
   }
 }
 
-async function setupAttachmentLifecycleForEntry(
-  entry: StorageEntry,
-): Promise<void> {
-  const bucket = entry.config.attachmentPrivateBucket;
-  if (!bucket) return;
-  try {
-    await applyAttachmentLifecycleRule(getS3Client(entry.storage), bucket);
-  } catch (error: unknown) {
-    Logging.Warn(StagingLifecycleErrorPrefix, bucket, error);
-  }
-}
-
 async function setupStagingLifecycles(config: Config): Promise<void> {
   const entries = collectStorageEntries(config);
-  await Promise.all([
-    ...entries.map(setupStagingLifecycleForEntry),
-    ...entries.map(setupAttachmentLifecycleForEntry),
-  ]);
+  await Promise.all(entries.map(setupStagingLifecycleForEntry));
 }
 
 export async function construct(config: Config): Promise<void> {
@@ -150,19 +142,11 @@ export async function construct(config: Config): Promise<void> {
     throw new Error("Named storage 'default' is reserved");
   moduleConfig = config;
   await setupStagingLifecycles(config);
-  const [
-    fileStorageInterface,
-    fileStorageImplementation,
-    attachmentInterface,
-    attachmentImplementation,
-  ] = await Promise.all([
+  const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
     import("@antelopejs/interface-file-storage"),
     import("./implementations/file-storage"),
-    import("@antelopejs/interface-file-storage/attachments"),
-    import("./implementations/attachments"),
   ]);
   void ImplementInterface(fileStorageInterface, fileStorageImplementation);
-  void ImplementInterface(attachmentInterface, attachmentImplementation);
 }
 
 export function start(): void {}

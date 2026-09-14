@@ -17,6 +17,8 @@ export default defineConfig({
           accessKeyId: "test-access-key",
           secretAccessKey: "test-secret-key",
           bucket: "private-bucket",
+          attachmentPrivateBucket: "visibility-private-bucket",
+          publicUrl: "https://cdn.example.com",
           defaultVisibility: "private",
           defaultUploadExpiration: 3600,
           defaultReadExpiration: 300,

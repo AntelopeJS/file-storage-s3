@@ -15,6 +15,7 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetBucketLifecycleConfigurationCommand,
+  GetPublicAccessBlockCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
   type LifecycleRule,
@@ -208,6 +209,40 @@ describe("file-storage interface", () => {
     assert.equal(response.resourceKey.startsWith(STAGING_PREFIX), false);
   });
 
+  it("routes explicit visibility with canonical staged keys", async () => {
+    const privateUpload = await CreateUploadUrl({
+      filename: "draft.txt",
+      size: 5,
+      mimetype: "text/plain",
+      visibility: "private",
+      metadata: { visibility: "public", source: "cms" },
+      staging: true,
+    });
+    const publicUpload = await CreateUploadUrl({
+      filename: "draft.txt",
+      size: 5,
+      mimetype: "text/plain",
+      visibility: "public",
+      staging: true,
+    });
+
+    assert.ok(
+      privateUpload.resourceKey.startsWith(
+        `${STAGING_PREFIX}__visibility__/private/`,
+      ),
+    );
+    assert.ok(privateUpload.uploadUrl.includes("visibility-private-bucket"));
+    assert.equal(privateUpload.headers["x-amz-meta-visibility"], "public");
+    assert.ok((await CreateReadUrl(privateUpload.resourceKey, 30)).expiresAt);
+    assert.ok(publicUpload.uploadUrl.includes(DefaultBucket));
+    const publicRead = await CreateReadUrl(publicUpload.resourceKey, 30);
+    assert.equal(publicRead.expiresAt, undefined);
+    assert.equal(
+      publicRead.url,
+      `https://cdn.example.com/${publicUpload.resourceKey}`,
+    );
+  });
+
   it("promotes a staged file and returns the clean key", async () => {
     seedStagedFile();
 
@@ -260,6 +295,16 @@ function createMockSendMethod(): S3SendMethod {
     try {
       if (command instanceof HeadObjectCommand) {
         return Promise.resolve(handleHeadObjectCommand(command));
+      }
+      if (command instanceof GetPublicAccessBlockCommand) {
+        return Promise.resolve({
+          PublicAccessBlockConfiguration: {
+            BlockPublicAcls: true,
+            IgnorePublicAcls: true,
+            BlockPublicPolicy: true,
+            RestrictPublicBuckets: true,
+          },
+        });
       }
       if (command instanceof DeleteObjectCommand) {
         return Promise.resolve(handleDeleteObjectCommand(command));

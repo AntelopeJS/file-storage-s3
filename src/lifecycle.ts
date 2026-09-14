@@ -7,9 +7,6 @@ import {
 } from "@aws-sdk/client-s3";
 
 const StagingLifecycleRuleId = "antelopejs-staging-expiration";
-const AttachmentLifecycleRuleId = "antelopejs-attachment-temporary-expiration";
-const AttachmentTemporaryPrefix = "attachments/temporary/";
-const AttachmentExpirationDays = 1;
 const NoLifecycleConfigErrorName = "NoSuchLifecycleConfiguration";
 const EnabledStatus = "Enabled";
 
@@ -64,32 +61,6 @@ export async function applyStagingLifecycleRule(
       Bucket: bucket,
       LifecycleConfiguration: {
         Rules: [...otherRules, buildStagingRule(expirationDays)],
-      },
-    }),
-  );
-}
-
-export async function applyAttachmentLifecycleRule(
-  client: S3Client,
-  bucket: string,
-): Promise<void> {
-  const existingRules = await getExistingRules(client, bucket);
-  const otherRules = existingRules.filter(
-    (rule) => rule.ID !== AttachmentLifecycleRuleId,
-  );
-  await client.send(
-    new PutBucketLifecycleConfigurationCommand({
-      Bucket: bucket,
-      LifecycleConfiguration: {
-        Rules: [
-          ...otherRules,
-          {
-            ID: AttachmentLifecycleRuleId,
-            Status: EnabledStatus,
-            Filter: { Prefix: AttachmentTemporaryPrefix },
-            Expiration: { Days: AttachmentExpirationDays },
-          },
-        ],
       },
     }),
   );
