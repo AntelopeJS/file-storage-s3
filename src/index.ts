@@ -11,6 +11,7 @@ export interface StorageConfig {
   accessKeyId: string;
   secretAccessKey: string;
   bucket: string;
+  attachmentPrivateBucket?: string;
   publicUrl?: string;
   defaultVisibility: Visibility;
   defaultUploadExpiration: number;
@@ -132,11 +133,19 @@ async function setupStagingLifecycles(config: Config): Promise<void> {
 export async function construct(config: Config): Promise<void> {
   moduleConfig = config;
   await setupStagingLifecycles(config);
-  const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
+  const [
+    fileStorageInterface,
+    fileStorageImplementation,
+    attachmentInterface,
+    attachmentImplementation,
+  ] = await Promise.all([
     import("@antelopejs/interface-file-storage"),
     import("./implementations/file-storage"),
+    import("@antelopejs/interface-file-storage/attachments"),
+    import("./implementations/attachments"),
   ]);
   void ImplementInterface(fileStorageInterface, fileStorageImplementation);
+  void ImplementInterface(attachmentInterface, attachmentImplementation);
 }
 
 export function start(): void {}
