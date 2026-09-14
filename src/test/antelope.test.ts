@@ -1,4 +1,24 @@
+import { existsSync } from "node:fs";
+import assert from "node:assert/strict";
+import { dirname, join } from "node:path";
 import { defineConfig } from "@antelopejs/interface-core/config";
+
+import {
+  MotoEndpoint,
+  PrivateBucket,
+  PublicBucket,
+  PublicUrl,
+  TestCredentials,
+} from "./moto";
+
+const InterfaceTests = join(
+  dirname(require.resolve("@antelopejs/interface-file-storage")),
+  "tests/file-storage.test.js",
+);
+assert.ok(
+  existsSync(InterfaceTests),
+  "Install @antelopejs/interface-file-storage >=0.1.3 containing dist/tests/file-storage.test.js before running tests (see UPLOADS.md).",
+);
 
 export default defineConfig({
   name: "file-storage-s3-test",
@@ -8,27 +28,27 @@ export default defineConfig({
       source: {
         type: "local",
         path: ".",
-        installCommand: ["npx tsc"],
+        installCommand: ["pnpm exec tsc"],
       },
       config: {
         default: {
-          endpoint: "https://s3.amazonaws.com",
+          endpoint: MotoEndpoint,
           region: "us-east-1",
-          accessKeyId: "test-access-key",
-          secretAccessKey: "test-secret-key",
-          bucket: "private-bucket",
+          ...TestCredentials,
+          bucket: PublicBucket,
+          attachmentPrivateBucket: PrivateBucket,
+          publicUrl: PublicUrl,
           defaultVisibility: "private",
           defaultUploadExpiration: 3600,
           defaultReadExpiration: 300,
         },
         storages: {
           "public-assets": {
-            endpoint: "https://s3.amazonaws.com",
+            endpoint: MotoEndpoint,
             region: "us-east-1",
-            accessKeyId: "test-access-key",
-            secretAccessKey: "test-secret-key",
-            bucket: "public-bucket",
-            publicUrl: "https://cdn.example.com",
+            ...TestCredentials,
+            bucket: PublicBucket,
+            publicUrl: PublicUrl,
             defaultVisibility: "public",
             defaultUploadExpiration: 3600,
             defaultReadExpiration: 300,

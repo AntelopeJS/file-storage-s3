@@ -11,6 +11,7 @@ export interface StorageConfig {
   accessKeyId: string;
   secretAccessKey: string;
   bucket: string;
+  attachmentPrivateBucket?: string;
   publicUrl?: string;
   defaultVisibility: Visibility;
   defaultUploadExpiration: number;
@@ -111,10 +112,20 @@ async function setupStagingLifecycleForEntry(
     return;
   }
   try {
-    await applyStagingLifecycleRule(
-      getS3Client(entry.storage),
+    const buckets = [
       entry.config.bucket,
-      expirationDays,
+      ...(entry.config.attachmentPrivateBucket
+        ? [entry.config.attachmentPrivateBucket]
+        : []),
+    ];
+    await Promise.all(
+      buckets.map((bucket) =>
+        applyStagingLifecycleRule(
+          getS3Client(entry.storage),
+          bucket,
+          expirationDays,
+        ),
+      ),
     );
   } catch (error: unknown) {
     Logging.Warn(StagingLifecycleErrorPrefix, entry.config.bucket, error);
@@ -122,14 +133,13 @@ async function setupStagingLifecycleForEntry(
 }
 
 async function setupStagingLifecycles(config: Config): Promise<void> {
-  await Promise.all(
-    collectStorageEntries(config).map((entry) =>
-      setupStagingLifecycleForEntry(entry),
-    ),
-  );
+  const entries = collectStorageEntries(config);
+  await Promise.all(entries.map(setupStagingLifecycleForEntry));
 }
 
 export async function construct(config: Config): Promise<void> {
+  if (config.storages?.default)
+    throw new Error("Named storage 'default' is reserved");
   moduleConfig = config;
   await setupStagingLifecycles(config);
   const [fileStorageInterface, fileStorageImplementation] = await Promise.all([

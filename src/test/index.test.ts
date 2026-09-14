@@ -1,38 +1,40 @@
+import { Readable } from "node:stream";
 import assert from "node:assert/strict";
 import {
   CreateReadUrl,
   CreateUploadUrl,
-  DeleteFile,
   FileExists,
-  FileNotFoundError,
   GetFileMetadata,
   MoveFile,
   PromoteFile,
   STAGING_PREFIX,
-  UploadValidationError,
 } from "@antelopejs/interface-file-storage";
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetBucketLifecycleConfigurationCommand,
+  GetObjectCommand,
+  GetPublicAccessBlockCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
   type LifecycleRule,
   PutBucketLifecycleConfigurationCommand,
+  PutObjectCommand,
   type PutBucketLifecycleConfigurationCommandInput,
   S3Client,
 } from "@aws-sdk/client-s3";
 
+import { PublicBucket, PublicUrl } from "./moto";
 import { applyStagingLifecycleRule } from "../lifecycle";
 
 const ExistingResourceKey = "folder/existing.txt";
-const MissingResourceKey = "folder/missing.txt";
 const MetadataOnlyResourceKey = "folder/metadata-only.txt";
 const StagedResourceKey = `${STAGING_PREFIX}uploads/staged.txt`;
 const PromotedResourceKey = "uploads/staged.txt";
 const UploadPath = "/uploads/";
 const PublicStorage = "public-assets";
-const DefaultBucket = "private-bucket";
+const DefaultBucket = PublicBucket;
+const PreconditionFailedStatus = 412;
 
 interface StoredFile {
   size: number;
@@ -46,7 +48,16 @@ interface NotFoundErrorShape extends Error {
 }
 
 type S3SendMethod = S3Client["send"];
-type SendCommand = DeleteObjectCommand | HeadObjectCommand | CopyObjectCommand;
+type SendCommand =
+  | DeleteObjectCommand
+  | HeadObjectCommand
+  | CopyObjectCommand
+  | GetObjectCommand
+  | PutObjectCommand;
+
+interface SourceResponse extends HeadObjectCommandOutput {
+  Body: Readable;
+}
 
 interface NotFoundMetadata {
   httpStatusCode: number;
@@ -55,7 +66,7 @@ interface NotFoundMetadata {
 const originalSend = S3Client.prototype.send;
 const storageByResourceKey: Map<string, StoredFile> = new Map();
 
-describe("file-storage interface", () => {
+describe("S3 commands and URL mapping", () => {
   before(() => {
     S3Client.prototype.send = createMockSendMethod();
   });
@@ -87,49 +98,13 @@ describe("file-storage interface", () => {
     assert.ok(response.expiresAt > Date.now());
   });
 
-  it("validates upload max size constraints", async () => {
-    await assert.rejects(
-      () =>
-        CreateUploadUrl(
-          {
-            filename: "oversized.txt",
-            size: 20,
-            mimetype: "text/plain",
-          },
-          { maxSize: 10 },
-        ),
-      (error: unknown) =>
-        error instanceof UploadValidationError &&
-        error.code === "SIZE_EXCEEDED" &&
-        error.message.includes("20"),
-    );
-  });
-
-  it("validates upload mimetype constraints", async () => {
-    await assert.rejects(
-      () =>
-        CreateUploadUrl(
-          {
-            filename: "document.pdf",
-            size: 10,
-            mimetype: "application/pdf",
-          },
-          { allowedMimetypes: ["image/png", "image/jpeg"] },
-        ),
-      (error: unknown) =>
-        error instanceof UploadValidationError &&
-        error.code === "MIMETYPE_NOT_ALLOWED" &&
-        error.message.includes("pdf"),
-    );
-  });
-
   it("returns public read URL when storage visibility is public", async () => {
     const response = await CreateReadUrl(
       "assets/logo.svg",
       undefined,
       PublicStorage,
     );
-    assert.equal(response.url, "https://cdn.example.com/assets/logo.svg");
+    assert.equal(response.url, `${PublicUrl}/assets/logo.svg`);
     assert.equal(response.expiresAt, undefined);
   });
 
@@ -138,44 +113,6 @@ describe("file-storage interface", () => {
     assert.ok(response.url.includes("X-Amz-Signature="));
     assert.ok(response.expiresAt !== undefined);
     assert.ok((response.expiresAt ?? 0) > Date.now());
-  });
-
-  it("returns true when the file exists", async () => {
-    const exists = await FileExists(ExistingResourceKey);
-    assert.equal(exists, true);
-  });
-
-  it("returns false when the file does not exist", async () => {
-    const exists = await FileExists(MissingResourceKey);
-    assert.equal(exists, false);
-  });
-
-  it("returns metadata for existing files", async () => {
-    const metadata = await GetFileMetadata(ExistingResourceKey);
-    assert.equal(metadata.resourceKey, ExistingResourceKey);
-    assert.equal(metadata.filename, "existing.txt");
-    assert.equal(metadata.size, 42);
-    assert.equal(metadata.mimetype, "text/plain");
-    assert.ok(metadata.lastModified > 0);
-    assert.deepEqual(metadata.metadata, {
-      filename: "existing.txt",
-      source: "seed",
-    });
-  });
-
-  it("throws FileNotFoundError when metadata is requested for a missing file", async () => {
-    await assert.rejects(
-      () => GetFileMetadata(MissingResourceKey),
-      (error: unknown) => error instanceof FileNotFoundError,
-    );
-  });
-
-  it("deletes files from storage", async () => {
-    const existsBeforeDelete = await FileExists(ExistingResourceKey);
-    assert.equal(existsBeforeDelete, true);
-    await DeleteFile(ExistingResourceKey);
-    const existsAfterDelete = await FileExists(ExistingResourceKey);
-    assert.equal(existsAfterDelete, false);
   });
 
   it("defaults metadata filename to empty string when filename metadata is not set", async () => {
@@ -208,7 +145,38 @@ describe("file-storage interface", () => {
     assert.equal(response.resourceKey.startsWith(STAGING_PREFIX), false);
   });
 
-  it("promotes a staged file and returns the clean key", async () => {
+  it("routes explicit visibility with canonical staged keys", async () => {
+    const privateUpload = await CreateUploadUrl({
+      filename: "draft.txt",
+      size: 5,
+      mimetype: "text/plain",
+      visibility: "private",
+      metadata: { visibility: "public", source: "cms" },
+      staging: true,
+    });
+    const publicUpload = await CreateUploadUrl({
+      filename: "draft.txt",
+      size: 5,
+      mimetype: "text/plain",
+      visibility: "public",
+      staging: true,
+    });
+
+    assert.ok(
+      privateUpload.resourceKey.startsWith(
+        `${STAGING_PREFIX}__visibility__/private/`,
+      ),
+    );
+    assert.ok(privateUpload.uploadUrl.includes("visibility-private-bucket"));
+    assert.equal(privateUpload.headers["x-amz-meta-visibility"], "public");
+    assert.ok((await CreateReadUrl(privateUpload.resourceKey, 30)).expiresAt);
+    assert.ok(publicUpload.uploadUrl.includes(DefaultBucket));
+    const publicRead = await CreateReadUrl(publicUpload.resourceKey, 30);
+    assert.equal(publicRead.expiresAt, undefined);
+    assert.equal(publicRead.url, `${PublicUrl}/${publicUpload.resourceKey}`);
+  });
+
+  it("publishes promotion through a conditional streaming S3 PUT", async () => {
     seedStagedFile();
 
     const result = await PromoteFile(StagedResourceKey);
@@ -216,33 +184,6 @@ describe("file-storage interface", () => {
     assert.equal(result.resourceKey, PromotedResourceKey);
     assert.equal(await FileExists(PromotedResourceKey), true);
     assert.equal(await FileExists(StagedResourceKey), false);
-  });
-
-  it("is a no-op when promoting a non-staged key", async () => {
-    const result = await PromoteFile(ExistingResourceKey);
-
-    assert.equal(result.resourceKey, ExistingResourceKey);
-    assert.equal(await FileExists(ExistingResourceKey), true);
-  });
-
-  it("throws when promoting a staged key that no longer exists", async () => {
-    await assert.rejects(
-      () => PromoteFile(`${STAGING_PREFIX}uploads/ghost.txt`),
-      (error: unknown) => error instanceof FileNotFoundError,
-    );
-  });
-
-  it("is safe to promote twice", async () => {
-    seedStagedFile();
-
-    const first = await PromoteFile(StagedResourceKey);
-    const second = await PromoteFile(StagedResourceKey);
-    const third = await PromoteFile(PromotedResourceKey);
-
-    assert.equal(first.resourceKey, PromotedResourceKey);
-    assert.equal(second.resourceKey, PromotedResourceKey);
-    assert.equal(third.resourceKey, PromotedResourceKey);
-    assert.equal(await FileExists(PromotedResourceKey), true);
   });
 
   it("moves an object to a new key with MoveFile", async () => {
@@ -260,6 +201,22 @@ function createMockSendMethod(): S3SendMethod {
     try {
       if (command instanceof HeadObjectCommand) {
         return Promise.resolve(handleHeadObjectCommand(command));
+      }
+      if (command instanceof GetObjectCommand) {
+        return Promise.resolve(handleGetObjectCommand(command));
+      }
+      if (command instanceof PutObjectCommand) {
+        return handlePutObjectCommand(command);
+      }
+      if (command instanceof GetPublicAccessBlockCommand) {
+        return Promise.resolve({
+          PublicAccessBlockConfiguration: {
+            BlockPublicAcls: true,
+            IgnorePublicAcls: true,
+            BlockPublicPolicy: true,
+            RestrictPublicBuckets: true,
+          },
+        });
       }
       if (command instanceof DeleteObjectCommand) {
         return Promise.resolve(handleDeleteObjectCommand(command));
@@ -279,6 +236,35 @@ function createMockSendMethod(): S3SendMethod {
 function parseCopySource(copySource: string): string {
   const keyPart = copySource.slice(copySource.indexOf("/") + 1);
   return keyPart.split("/").map(decodeURIComponent).join("/");
+}
+
+function handleGetObjectCommand(command: GetObjectCommand): SourceResponse {
+  const head = handleHeadObjectCommand(new HeadObjectCommand(command.input));
+  return { ...head, Body: Readable.from([Buffer.alloc(head.ContentLength!)]) };
+}
+
+async function handlePutObjectCommand(
+  command: PutObjectCommand,
+): Promise<Record<string, never>> {
+  const key = getCommandResourceKey(command);
+  assert.equal(command.input.IfNoneMatch, "*");
+  assert.ok(command.input.Body instanceof Readable);
+  let size = 0;
+  for await (const chunk of command.input.Body)
+    size += Buffer.byteLength(chunk);
+  assert.equal(size, command.input.ContentLength);
+  if (storageByResourceKey.has(key)) {
+    throw Object.assign(new Error("Precondition failed"), {
+      $metadata: { httpStatusCode: PreconditionFailedStatus },
+    });
+  }
+  storageByResourceKey.set(key, {
+    size,
+    mimetype: command.input.ContentType!,
+    lastModified: new Date(),
+    metadata: command.input.Metadata ?? {},
+  });
+  return {};
 }
 
 function handleCopyObjectCommand(
@@ -307,6 +293,7 @@ function handleHeadObjectCommand(
     throw createNotFoundError();
   }
   const output: HeadObjectCommandOutput = {
+    ETag: '"mock-etag"',
     ContentLength: storedFile.size,
     ContentType: storedFile.mimetype,
     LastModified: storedFile.lastModified,
