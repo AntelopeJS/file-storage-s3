@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.1.3
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.2...v0.1.3)
+
+### 🩹 Fixes
+
+- **storage:** Add create-only uploads and streaming promotion ([#13](https://github.com/AntelopeJS/file-storage-s3/pull/13))
+
+### 🏡 Chore
+
+- Replace Biome with oxlint, oxfmt and Knip ([#11](https://github.com/AntelopeJS/file-storage-s3/pull/11))
+
+### 🤖 CI
+
+- Standardize npm releases ([#10](https://github.com/AntelopeJS/file-storage-s3/pull/10))
+- Start moto for release tests ([#14](https://github.com/AntelopeJS/file-storage-s3/pull/14))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Thomas ([@Thomasims](http://github.com/Thomasims))
+
 ## v0.1.2
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.1...v0.1.2)
