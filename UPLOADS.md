@@ -32,15 +32,20 @@ See AWS documentation for [conditional writes](https://docs.aws.amazon.com/Amazo
 
 ## Verification
 
-The existing Antelope runner includes the signature tests. They independently reconstruct the SigV4 HMAC with fake test credentials, confirm the valid signature, and show that omitted or altered condition headers produce a different signature. They do not send requests to AWS or claim to test AWS authentication responses. Existing tests continue to exercise legacy reads, public storage selection, moves, and promotion.
+The Antelope runner discovers the provider-neutral conformance suite from the implemented interface's `dist/tests` directory. Those tests use the public interface and real HTTP uploads and reads against Moto, including explicit public and private visibility, metadata preservation, promotion replay, conflicts, cleanup, and validation. Provider-local tests retain S3 command, routing, lifecycle, and independent SigV4 HMAC assertions. The runner also executes all 15 HTTP/fault tests in `scripts/test-uploads.mjs` in an isolated process, keeping their module lifecycle and SDK fault injection separate from the shared suite.
+
+Start disposable Moto 5.2.3 before running the tests. CI supplies a pinned Moto service; locally, run the server in another terminal. `S3_UPLOAD_TEST_ENDPOINT` defaults to `http://127.0.0.1:5005` and must be a loopback endpoint. The root test fixture creates a public-read bucket and a separate bucket with all public-access-block flags enabled.
 
 ```sh
+uv tool install 'moto[server]==5.2.3'
+moto_server -H 127.0.0.1 -p 5005
+# In another terminal:
 pnpm test
 ```
 
-This branch requires the coordinated interface preview containing `internal.promoteFile` and `FileConflictError`, not merely the currently published baseline. Validation overlays the unpublished `interface-file-storage-promotion-preview.tgz` into ignored `node_modules/@antelopejs/interface-file-storage`; its SHA256 is `dabb3dc8750a705e9a317e0029f909256c3d40acff180139a35e6f619662edaa`. Package metadata retains the baseline version only for local integration. No published version or manifest dependency is fabricated; a clean registry-only install is not sufficient until the interface release is coordinated.
+This branch requires the coordinated interface preview containing `internal.promoteFile`, `FileConflictError`, and the shared suite, not merely the currently published baseline. Validation overlays the unpublished `interface-storage-conformance-final.tgz` into ignored `node_modules/@antelopejs/interface-file-storage`; its SHA256 is `7ab7d5366a5903bce57681f1e387f0ed9cb471ad14245065286649788010468e`. Package metadata retains the baseline version only for local integration. No published version or manifest dependency is fabricated; a clean registry-only install is not sufficient until the interface release is coordinated.
 
-The separate HTTP suite requires a disposable local S3-compatible emulator. It creates randomly named buckets, configures a private bucket's public-access-block flags, and refuses non-loopback endpoints. It exercises first-writer-wins, byte-changing replay, concurrent PUTs, storage routing, deletion/recreation, canonical promotion, lost acknowledgements, competing promotions, cleanup failure, interrupted source streams, foreign or incomplete finals, provenance transplantation, and late private orphans. SDK fault injection supplies failures and delays while object operations use real local HTTP.
+The provider-specific HTTP suite creates randomly named buckets and exercises first-writer-wins, byte-changing replay, concurrent PUTs, storage routing, deletion/recreation, canonical promotion, lost acknowledgements, competing promotions, cleanup failure, interrupted source streams, foreign or incomplete finals, provenance transplantation, and late private orphans. SDK fault injection supplies failures and delays while object operations use real local HTTP. It can also run independently:
 
 ```sh
 pnpm build
@@ -48,4 +53,4 @@ S3_UPLOAD_TEST_ENDPOINT=http://127.0.0.1:5005 \
   node --test scripts/test-uploads.mjs
 ```
 
-Validation used Moto 5.2.3: 24 Antelope runner tests and 15 HTTP tests passed with zero skipped. Moto is an emulator, not AWS/R2 conditional-write, IAM, signature-rejection, privacy-policy, or browser CORS conformance evidence. A separate Moto probe ignored a conditional CopyObject and overwrote its destination, so that operation is not used as conformance evidence. No AWS account, public CORS setting, or shared storage was modified. Browser CORS and real backend rejection remain deployment checks. Restart the disposable emulator to discard its test buckets.
+Validation used Moto 5.2.3: 24 Antelope runner tests passed, including nine shared conformance cases and the subprocess running all 15 HTTP tests, with zero skipped. Moto is an emulator, not AWS/R2 conditional-write, IAM, signature-rejection, privacy-policy, or browser CORS conformance evidence. A separate Moto probe ignored a conditional CopyObject and overwrote its destination, so that operation is not used as conformance evidence. No AWS account, public CORS setting, or shared storage was modified. Browser CORS and real backend rejection remain deployment checks. Restart the disposable emulator to discard its test buckets.

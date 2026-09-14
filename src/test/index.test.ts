@@ -3,14 +3,11 @@ import assert from "node:assert/strict";
 import {
   CreateReadUrl,
   CreateUploadUrl,
-  DeleteFile,
   FileExists,
-  FileNotFoundError,
   GetFileMetadata,
   MoveFile,
   PromoteFile,
   STAGING_PREFIX,
-  UploadValidationError,
 } from "@antelopejs/interface-file-storage";
 import {
   CopyObjectCommand,
@@ -27,16 +24,16 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 
+import { PublicBucket, PublicUrl } from "./moto";
 import { applyStagingLifecycleRule } from "../lifecycle";
 
 const ExistingResourceKey = "folder/existing.txt";
-const MissingResourceKey = "folder/missing.txt";
 const MetadataOnlyResourceKey = "folder/metadata-only.txt";
 const StagedResourceKey = `${STAGING_PREFIX}uploads/staged.txt`;
 const PromotedResourceKey = "uploads/staged.txt";
 const UploadPath = "/uploads/";
 const PublicStorage = "public-assets";
-const DefaultBucket = "private-bucket";
+const DefaultBucket = PublicBucket;
 const PreconditionFailedStatus = 412;
 
 interface StoredFile {
@@ -69,7 +66,7 @@ interface NotFoundMetadata {
 const originalSend = S3Client.prototype.send;
 const storageByResourceKey: Map<string, StoredFile> = new Map();
 
-describe("file-storage interface", () => {
+describe("S3 commands and URL mapping", () => {
   before(() => {
     S3Client.prototype.send = createMockSendMethod();
   });
@@ -101,49 +98,13 @@ describe("file-storage interface", () => {
     assert.ok(response.expiresAt > Date.now());
   });
 
-  it("validates upload max size constraints", async () => {
-    await assert.rejects(
-      () =>
-        CreateUploadUrl(
-          {
-            filename: "oversized.txt",
-            size: 20,
-            mimetype: "text/plain",
-          },
-          { maxSize: 10 },
-        ),
-      (error: unknown) =>
-        error instanceof UploadValidationError &&
-        error.code === "SIZE_EXCEEDED" &&
-        error.message.includes("20"),
-    );
-  });
-
-  it("validates upload mimetype constraints", async () => {
-    await assert.rejects(
-      () =>
-        CreateUploadUrl(
-          {
-            filename: "document.pdf",
-            size: 10,
-            mimetype: "application/pdf",
-          },
-          { allowedMimetypes: ["image/png", "image/jpeg"] },
-        ),
-      (error: unknown) =>
-        error instanceof UploadValidationError &&
-        error.code === "MIMETYPE_NOT_ALLOWED" &&
-        error.message.includes("pdf"),
-    );
-  });
-
   it("returns public read URL when storage visibility is public", async () => {
     const response = await CreateReadUrl(
       "assets/logo.svg",
       undefined,
       PublicStorage,
     );
-    assert.equal(response.url, "https://cdn.example.com/assets/logo.svg");
+    assert.equal(response.url, `${PublicUrl}/assets/logo.svg`);
     assert.equal(response.expiresAt, undefined);
   });
 
@@ -152,44 +113,6 @@ describe("file-storage interface", () => {
     assert.ok(response.url.includes("X-Amz-Signature="));
     assert.ok(response.expiresAt !== undefined);
     assert.ok((response.expiresAt ?? 0) > Date.now());
-  });
-
-  it("returns true when the file exists", async () => {
-    const exists = await FileExists(ExistingResourceKey);
-    assert.equal(exists, true);
-  });
-
-  it("returns false when the file does not exist", async () => {
-    const exists = await FileExists(MissingResourceKey);
-    assert.equal(exists, false);
-  });
-
-  it("returns metadata for existing files", async () => {
-    const metadata = await GetFileMetadata(ExistingResourceKey);
-    assert.equal(metadata.resourceKey, ExistingResourceKey);
-    assert.equal(metadata.filename, "existing.txt");
-    assert.equal(metadata.size, 42);
-    assert.equal(metadata.mimetype, "text/plain");
-    assert.ok(metadata.lastModified > 0);
-    assert.deepEqual(metadata.metadata, {
-      filename: "existing.txt",
-      source: "seed",
-    });
-  });
-
-  it("throws FileNotFoundError when metadata is requested for a missing file", async () => {
-    await assert.rejects(
-      () => GetFileMetadata(MissingResourceKey),
-      (error: unknown) => error instanceof FileNotFoundError,
-    );
-  });
-
-  it("deletes files from storage", async () => {
-    const existsBeforeDelete = await FileExists(ExistingResourceKey);
-    assert.equal(existsBeforeDelete, true);
-    await DeleteFile(ExistingResourceKey);
-    const existsAfterDelete = await FileExists(ExistingResourceKey);
-    assert.equal(existsAfterDelete, false);
   });
 
   it("defaults metadata filename to empty string when filename metadata is not set", async () => {
@@ -250,13 +173,10 @@ describe("file-storage interface", () => {
     assert.ok(publicUpload.uploadUrl.includes(DefaultBucket));
     const publicRead = await CreateReadUrl(publicUpload.resourceKey, 30);
     assert.equal(publicRead.expiresAt, undefined);
-    assert.equal(
-      publicRead.url,
-      `https://cdn.example.com/${publicUpload.resourceKey}`,
-    );
+    assert.equal(publicRead.url, `${PublicUrl}/${publicUpload.resourceKey}`);
   });
 
-  it("promotes a staged file and returns the clean key", async () => {
+  it("publishes promotion through a conditional streaming S3 PUT", async () => {
     seedStagedFile();
 
     const result = await PromoteFile(StagedResourceKey);
@@ -264,33 +184,6 @@ describe("file-storage interface", () => {
     assert.equal(result.resourceKey, PromotedResourceKey);
     assert.equal(await FileExists(PromotedResourceKey), true);
     assert.equal(await FileExists(StagedResourceKey), false);
-  });
-
-  it("is a no-op when promoting a non-staged key", async () => {
-    const result = await PromoteFile(ExistingResourceKey);
-
-    assert.equal(result.resourceKey, ExistingResourceKey);
-    assert.equal(await FileExists(ExistingResourceKey), true);
-  });
-
-  it("throws when promoting a staged key that no longer exists", async () => {
-    await assert.rejects(
-      () => PromoteFile(`${STAGING_PREFIX}uploads/ghost.txt`),
-      (error: unknown) => error instanceof FileNotFoundError,
-    );
-  });
-
-  it("is safe to promote twice", async () => {
-    seedStagedFile();
-
-    const first = await PromoteFile(StagedResourceKey);
-    const second = await PromoteFile(StagedResourceKey);
-    const third = await PromoteFile(PromotedResourceKey);
-
-    assert.equal(first.resourceKey, PromotedResourceKey);
-    assert.equal(second.resourceKey, PromotedResourceKey);
-    assert.equal(third.resourceKey, PromotedResourceKey);
-    assert.equal(await FileExists(PromotedResourceKey), true);
   });
 
   it("moves an object to a new key with MoveFile", async () => {
