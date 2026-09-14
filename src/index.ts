@@ -16,6 +16,12 @@ export interface StorageConfig {
   defaultUploadExpiration: number;
   defaultReadExpiration: number;
   /**
+   * Opts into versioned, private sealing. A durable unique store incarnation ID,
+   * shared by aliases, never reused after bucket recreation. Requires exclusive
+   * adapter ownership of __sealed__/ and __seal_data__/ without lifecycle expiry.
+   */
+  sealStorageId?: string;
+  /**
    * When set, a bucket lifecycle rule expiring objects under the staging
    * prefix after this many days is applied at bootstrap. Omit to manage the
    * rule as external infrastructure instead.

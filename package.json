@@ -32,6 +32,7 @@
     "prepack": "pnpm run build",
     "release": "pnpm run lint && pnpm run test && pnpm run prepack && release-it",
     "test": "pnpm run build && ajs module test .",
+    "test:sealing": "pnpm run build && node --test dist/integration/sealing.test.js",
     "format:check": "oxfmt --check .",
     "knip": "knip"
   },

@@ -5,6 +5,7 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  type GetObjectCommandInput,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
   PutObjectCommand,
@@ -14,13 +15,19 @@ import {
   FileNotFoundError,
   type PresignedReadResponse,
   type PresignedUploadResponse,
+  SEALED_PREFIX,
   toStagedKey,
   type UploadConstraints,
   type UploadRequest,
   UploadValidationError,
 } from "@antelopejs/interface-file-storage";
 
+import * as sealing from "../../sealing";
 import { getS3Client, getStorageConfig, type StorageConfig } from "../../index";
+import {
+  rejectBackingAccess,
+  rejectReservedMutation,
+} from "../../sealing-store";
 
 const NotFoundStatusCode = 404;
 const DefaultMimetype = "application/octet-stream";
@@ -41,6 +48,7 @@ function generateResourceKey(request: UploadRequest): string {
   const resourceId = randomUUID();
   const pathPrefix = normalizePathPrefix(request.path);
   const baseKey = `${pathPrefix}${resourceId}${fileExtension}`;
+  rejectReservedMutation(baseKey);
   return request.staging ? toStagedKey(baseKey) : baseKey;
 }
 
@@ -179,6 +187,11 @@ function buildCopySource(bucket: string, sourceKey: string): string {
 }
 
 export namespace internal {
+  export const getFileSnapshot = sealing.getFileSnapshot;
+  export const sealFile = sealing.sealFile;
+  export const getFileSeal = sealing.getFileSeal;
+  export const removeSealedFile = sealing.removeSealedFile;
+
   export const createUploadUrl = async (
     request: UploadRequest,
     constraints?: UploadConstraints,
@@ -218,6 +231,10 @@ export namespace internal {
     expiresIn?: number,
     storage?: string,
   ): Promise<PresignedReadResponse> => {
+    rejectBackingAccess(resourceKey);
+    const sealed = resourceKey.startsWith(SEALED_PREFIX)
+      ? await sealing.resolveSealedFile(resourceKey, storage)
+      : undefined;
     const config = getStorageConfig(storage);
     if (shouldUsePublicUrl(config)) {
       return { url: buildPublicReadUrl(resourceKey, config) };
@@ -225,10 +242,12 @@ export namespace internal {
 
     const client = getS3Client(storage);
     const effectiveExpiresIn = expiresIn ?? config.defaultReadExpiration;
-    const command = new GetObjectCommand({
+    const input: GetObjectCommandInput = {
       Bucket: config.bucket,
-      Key: resourceKey,
-    });
+      Key: sealed?.backingKey ?? resourceKey,
+    };
+    if (sealed) input.VersionId = sealed.backingVersion!;
+    const command = new GetObjectCommand(input);
 
     const url = await getSignedUrl(client, command, {
       expiresIn: effectiveExpiresIn,
@@ -244,6 +263,7 @@ export namespace internal {
     resourceKey: string,
     storage?: string,
   ): Promise<void> => {
+    rejectReservedMutation(resourceKey);
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
 
@@ -259,6 +279,16 @@ export namespace internal {
     resourceKey: string,
     storage?: string,
   ): Promise<boolean> => {
+    rejectBackingAccess(resourceKey);
+    if (resourceKey.startsWith(SEALED_PREFIX)) {
+      try {
+        await sealing.resolveSealedFile(resourceKey, storage);
+        return true;
+      } catch (error) {
+        if (error instanceof FileNotFoundError) return false;
+        throw error;
+      }
+    }
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
 
@@ -282,6 +312,11 @@ export namespace internal {
     resourceKey: string,
     storage?: string,
   ): Promise<FileMetadata> => {
+    rejectBackingAccess(resourceKey);
+    if (resourceKey.startsWith(SEALED_PREFIX)) {
+      return (await sealing.resolveSealedFile(resourceKey, storage)).file!
+        .metadata;
+    }
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
 
@@ -306,6 +341,8 @@ export namespace internal {
     destKey: string,
     storage?: string,
   ): Promise<void> => {
+    rejectReservedMutation(sourceKey);
+    rejectReservedMutation(destKey);
     if (sourceKey === destKey) {
       return;
     }
