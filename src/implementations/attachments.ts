@@ -28,8 +28,10 @@ const MaximumReadExpiration = 60;
 const PolicyCacheDuration = 60000;
 const TemporaryPrefix = "attachments/temporary/";
 const PrivatePrefix = "attachments/private/";
+const PublicPrefix = "attachments/public/";
 const KeyPattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
-const policyValidatedAt = new Map<string, number>();
+const policyValidatedAt = new WeakMap<S3Client, Map<string, number>>();
+const MaximumCopyAttempts = 3;
 
 function privateBucket(config: StorageConfig): string {
   if (!config.attachmentPrivateBucket)
@@ -66,7 +68,10 @@ async function assertPrivateBucket(
   client: S3Client,
   bucket: string,
 ): Promise<void> {
-  const lastValidation = policyValidatedAt.get(bucket) ?? 0;
+  const clientCache =
+    policyValidatedAt.get(client) ?? new Map<string, number>();
+  policyValidatedAt.set(client, clientCache);
+  const lastValidation = clientCache.get(bucket) ?? 0;
   if (Date.now() - lastValidation < PolicyCacheDuration) return;
   const response = await client.send(
     new GetPublicAccessBlockCommand({ Bucket: bucket }),
@@ -81,7 +86,7 @@ async function assertPrivateBucket(
     throw new Error(
       `Bucket '${bucket}' must enable every public access block setting`,
     );
-  policyValidatedAt.set(bucket, Date.now());
+  clientCache.set(bucket, Date.now());
 }
 
 async function assertAttachmentBuckets(
@@ -89,10 +94,9 @@ async function assertAttachmentBuckets(
   config: StorageConfig,
 ): Promise<string> {
   const source = privateBucket(config);
-  await Promise.all([
-    assertPrivateBucket(client, source),
-    assertPrivateBucket(client, config.bucket),
-  ]);
+  if (source === config.bucket)
+    throw new Error("Attachment private and public buckets must be different");
+  await assertPrivateBucket(client, source);
   return source;
 }
 
@@ -107,19 +111,38 @@ async function immutableCopy(
   destinationBucket: string,
   destinationKey: string,
 ): Promise<void> {
+  if (await objectExists(client, destinationBucket, destinationKey)) return;
+  await attemptImmutableCopy(
+    client,
+    sourceBucket,
+    sourceKey,
+    destinationBucket,
+    destinationKey,
+    MaximumCopyAttempts,
+  );
+}
+
+async function attemptImmutableCopy(
+  client: S3Client,
+  sourceBucket: string,
+  sourceKey: string,
+  destinationBucket: string,
+  destinationKey: string,
+  attempts: number,
+): Promise<void> {
   try {
     const source = await client.send(
       new GetObjectCommand({ Bucket: sourceBucket, Key: sourceKey }),
     );
-    if (!source.Body) throw new Error("Attachment source has no body");
+    if (!source.Body || source.ContentLength === undefined)
+      throw new Error("Attachment source has no sized body");
     const input: PutObjectCommandInput = {
       Bucket: destinationBucket,
       Key: destinationKey,
       Body: source.Body as NonNullable<PutObjectCommandInput["Body"]>,
       IfNoneMatch: "*",
     };
-    if (source.ContentLength !== undefined)
-      input.ContentLength = source.ContentLength;
+    input.ContentLength = source.ContentLength;
     if (source.ContentType !== undefined)
       input.ContentType = source.ContentType;
     if (source.Metadata !== undefined) input.Metadata = source.Metadata;
@@ -128,7 +151,37 @@ async function immutableCopy(
     const status = (error as { $metadata?: { httpStatusCode?: number } })
       .$metadata?.httpStatusCode;
     if (status !== 409 && status !== 412) throw error;
+    if (await objectExists(client, destinationBucket, destinationKey)) return;
+    if (status === 409 && attempts > 1)
+      return attemptImmutableCopy(
+        client,
+        sourceBucket,
+        sourceKey,
+        destinationBucket,
+        destinationKey,
+        attempts - 1,
+      );
+    throw error;
   }
+}
+
+async function objectExists(
+  client: S3Client,
+  bucket: string,
+  key: string,
+): Promise<boolean> {
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+    return true;
+  } catch (error: unknown) {
+    if (statusCode(error) === 404) return false;
+    throw error;
+  }
+}
+
+function statusCode(error: unknown): number | undefined {
+  return (error as { $metadata?: { httpStatusCode?: number } }).$metadata
+    ?.httpStatusCode;
 }
 
 function toMetadata(
@@ -160,6 +213,9 @@ export namespace internal {
       config.defaultUploadExpiration,
       MaximumUploadExpiration,
     );
+    if (!Number.isFinite(expiresIn) || expiresIn <= 0)
+      throw new Error("Upload URL expiration must be a positive finite number");
+    const expiresAt = Date.now() + expiresIn * 1000;
     const command = new PutObjectCommand({
       Bucket: bucket,
       Key: `${TemporaryPrefix}${resourceKey}`,
@@ -172,7 +228,7 @@ export namespace internal {
     return {
       uploadUrl,
       resourceKey,
-      expiresAt: Date.now() + expiresIn * 1000,
+      expiresAt,
       headers: {
         "Content-Type": request.mimetype,
         "Content-Length": String(request.size),
@@ -215,10 +271,10 @@ export namespace internal {
       bucket,
       `${PrivatePrefix}${resourceKey}`,
       config.bucket,
-      resourceKey,
+      `${PublicPrefix}${resourceKey}`,
     );
     return {
-      url: `${config.publicUrl.replace(/\/$/, "")}/${encodeURIComponent(resourceKey)}`,
+      url: `${config.publicUrl.replace(/\/$/, "")}/${PublicPrefix}${encodeURIComponent(resourceKey)}`,
     };
   }
 
@@ -240,7 +296,8 @@ export namespace internal {
           }),
         ),
       );
-    } catch {
+    } catch (error: unknown) {
+      if (statusCode(error) !== 404) throw error;
       throw new FileNotFoundError(resourceKey);
     }
   }
@@ -250,11 +307,14 @@ export namespace internal {
     expiresIn: number,
     storage?: string,
   ): Promise<PresignedReadResponse> {
+    if (!Number.isFinite(expiresIn) || expiresIn <= 0)
+      throw new Error("Read URL expiration must be a positive finite number");
     validateKey(resourceKey);
     const client = getS3Client(storage);
     const config = getStorageConfig(storage);
     const bucket = await assertAttachmentBuckets(client, config);
     const effective = Math.min(expiresIn, MaximumReadExpiration);
+    const expiresAt = Date.now() + effective * 1000;
     const url = await getSignedUrl(
       client,
       new GetObjectCommand({
@@ -263,7 +323,7 @@ export namespace internal {
       }),
       { expiresIn: effective },
     );
-    return { url, expiresAt: Date.now() + effective * 1000 };
+    return { url, expiresAt };
   }
 
   export async function deleteAttachment(
@@ -283,7 +343,10 @@ export namespace internal {
       ),
     );
     await client.send(
-      new DeleteObjectCommand({ Bucket: config.bucket, Key: resourceKey }),
+      new DeleteObjectCommand({
+        Bucket: config.bucket,
+        Key: `${PublicPrefix}${resourceKey}`,
+      }),
     );
   }
 }

@@ -3,7 +3,10 @@ import { Logging } from "@antelopejs/interface-core/logging";
 import { ImplementInterface } from "@antelopejs/interface-core";
 import type { Visibility } from "@antelopejs/interface-file-storage";
 
-import { applyStagingLifecycleRule } from "./lifecycle";
+import {
+  applyAttachmentLifecycleRule,
+  applyStagingLifecycleRule,
+} from "./lifecycle";
 
 export interface StorageConfig {
   endpoint: string;
@@ -122,15 +125,29 @@ async function setupStagingLifecycleForEntry(
   }
 }
 
+async function setupAttachmentLifecycleForEntry(
+  entry: StorageEntry,
+): Promise<void> {
+  const bucket = entry.config.attachmentPrivateBucket;
+  if (!bucket) return;
+  try {
+    await applyAttachmentLifecycleRule(getS3Client(entry.storage), bucket);
+  } catch (error: unknown) {
+    Logging.Warn(StagingLifecycleErrorPrefix, bucket, error);
+  }
+}
+
 async function setupStagingLifecycles(config: Config): Promise<void> {
-  await Promise.all(
-    collectStorageEntries(config).map((entry) =>
-      setupStagingLifecycleForEntry(entry),
-    ),
-  );
+  const entries = collectStorageEntries(config);
+  await Promise.all([
+    ...entries.map(setupStagingLifecycleForEntry),
+    ...entries.map(setupAttachmentLifecycleForEntry),
+  ]);
 }
 
 export async function construct(config: Config): Promise<void> {
+  if (config.storages?.default)
+    throw new Error("Named storage 'default' is reserved");
   moduleConfig = config;
   await setupStagingLifecycles(config);
   const [
