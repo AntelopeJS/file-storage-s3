@@ -36,6 +36,7 @@ const PrivateKeyPrefix = `${VisibilityKeyPrefix}private/`;
 const PublicKeyPrefix = `${VisibilityKeyPrefix}public/`;
 const MillisecondsPerSecond = 1000;
 const policyValidatedAt = new WeakMap<S3Client, Set<string>>();
+const CreateOnlyCondition = "*";
 
 interface ErrorMetadata {
   httpStatusCode?: number;
@@ -171,6 +172,7 @@ function buildUploadHeaders(
   return {
     "Content-Type": request.mimetype,
     "Content-Length": String(request.size),
+    "If-None-Match": CreateOnlyCondition,
     ...buildMetadataHeaders(metadata),
   };
 }
@@ -270,6 +272,7 @@ export namespace internal {
       ContentType: request.mimetype,
       ContentLength: request.size,
       Metadata: metadata,
+      IfNoneMatch: CreateOnlyCondition,
     });
 
     const expiresIn = config.defaultUploadExpiration;
