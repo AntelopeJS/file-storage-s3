@@ -17,7 +17,7 @@ const InterfaceTests = join(
 );
 assert.ok(
   existsSync(InterfaceTests),
-  "Install the coordinated interface-file-storage release or overlay its packed preview containing dist/tests/file-storage.test.js before running tests (see UPLOADS.md).",
+  "Install @antelopejs/interface-file-storage >=0.1.3 containing dist/tests/file-storage.test.js before running tests (see UPLOADS.md).",
 );
 
 export default defineConfig({

@@ -43,7 +43,7 @@ moto_server -H 127.0.0.1 -p 5005
 pnpm test
 ```
 
-This branch requires the coordinated interface preview containing `internal.promoteFile`, `FileConflictError`, and the shared suite, not merely the currently published baseline. Validation overlays the unpublished `interface-storage-conformance-final.tgz` into ignored `node_modules/@antelopejs/interface-file-storage`; its SHA256 is `7ab7d5366a5903bce57681f1e387f0ed9cb471ad14245065286649788010468e`. Package metadata retains the baseline version only for local integration. No published version or manifest dependency is fabricated; a clean registry-only install is not sufficient until the interface release is coordinated.
+The module requires published `@antelopejs/interface-file-storage >=0.1.3 <1.0.0`, which includes `internal.promoteFile`, `FileConflictError`, and the shared suite. The lockfile resolves version 0.1.3. Validation uses a clean registry-only installation with no packed preview or dependency overlay.
 
 The provider-specific HTTP suite creates randomly named buckets and exercises first-writer-wins, byte-changing replay, concurrent PUTs, storage routing, deletion/recreation, canonical promotion, lost acknowledgements, competing promotions, cleanup failure, interrupted source streams, foreign or incomplete finals, provenance transplantation, and late private orphans. SDK fault injection supplies failures and delays while object operations use real local HTTP. It can also run independently:
 
