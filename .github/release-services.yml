@@ -1,0 +1,14 @@
+services:
+  moto:
+    image: motoserver/moto:5.2.3
+    ports:
+      - 5005:5000
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://localhost:5000")
+      interval: 5s
+      timeout: 3s
+      retries: 10
