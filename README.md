@@ -67,10 +67,13 @@ all public access: `GetPublicAccessBlock` must report the four flags
 `RestrictPublicBuckets` as enabled. Otherwise, every explicit private upload
 and read fails.
 
-Some S3-compatible providers do not implement `GetPublicAccessBlock` (MinIO
-answers `501 NotImplemented`; Hetzner Object Storage does not list it among its
-supported actions). For those providers, set `assumePrivateBuckets: true` on
-the storage:
+Some S3-compatible providers cannot satisfy this verification. MinIO does not
+implement `GetPublicAccessBlock` and answers `501 NotImplemented`. Other
+providers implement it but reject authenticated writes when it is enabled: on
+Hetzner Object Storage, `BlockPublicAcls` or `BlockPublicPolicy` makes every
+authenticated `PutObject` (presigned uploads included) fail with `403`, and
+`RestrictPublicBuckets` turns the `412` of a create-only conditional upload into
+a `403`. For those providers, set `assumePrivateBuckets: true` on the storage:
 
 ```ts
 default: {
@@ -81,18 +84,24 @@ default: {
 ```
 
 With this option, the module skips the public access block verification and
-logs a warning at startup for each assumed bucket. As a best-effort safety net,
-it calls `GetBucketPolicyStatus` and refuses the bucket when the provider
-reports it public. The module continues when the provider does not implement
-that call (`501 NotImplemented`) or when the bucket has no policy. Any other
-error still fails the verification.
+logs a warning at startup for each assumed bucket. It still verifies the bucket
+before its first use:
+
+- `GetBucketAcl` must not return any grant to the `AllUsers` or
+  `AuthenticatedUsers` groups, whatever the permission.
+- `GetBucketPolicyStatus` must not report the bucket public. A bucket without a
+  policy (`NoSuchBucketPolicy`) passes.
+
+The module continues when the provider does not implement one of these calls
+(`501 NotImplemented`). Any other error, such as `AccessDenied`, fails the
+verification.
 
 The operator is then responsible for keeping the private bucket private: do not
 attach a public bucket policy, public ACLs, anonymous access rules, or a public
-domain to it. Providers can under-report public access through
-`GetBucketPolicyStatus` (MinIO reports `IsPublic: false` even with an
-anonymous read policy), so do not rely on the safety net alone. The option
-defaults to `false`, which keeps the strict verification.
+domain to it. Providers can under-report public access (MinIO reports
+`IsPublic: false` through `GetBucketPolicyStatus` even with an anonymous read
+policy), so do not rely on these checks alone. The option defaults to `false`,
+which keeps the strict verification.
 
 Additional backends can be declared under `storages`. The name `default` is
 reserved.

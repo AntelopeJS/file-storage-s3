@@ -23,9 +23,12 @@ export interface StorageConfig {
    */
   stagingExpirationDays?: number;
   /**
-   * Skips the public access block verification of `attachmentPrivateBucket`
-   * for providers that do not implement it. The operator is then responsible
-   * for keeping that bucket private. Defaults to `false`.
+   * Replaces the public access block verification of `attachmentPrivateBucket`
+   * for providers that do not implement it or that reject authenticated writes
+   * when it is enabled. The bucket is still refused when its ACL grants public
+   * access or its policy status is reported public, but providers can
+   * under-report both, so the operator stays responsible for keeping that
+   * bucket private. Defaults to `false`.
    */
   assumePrivateBuckets?: boolean;
 }
