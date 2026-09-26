@@ -59,6 +59,41 @@ export default defineConfig({
 bucket. `publicUrl` is required for public reads. Omit
 `stagingExpirationDays` when lifecycle rules are managed by infrastructure.
 
+### Private bucket verification
+
+Before its first use, the module verifies that `attachmentPrivateBucket` blocks
+all public access: `GetPublicAccessBlock` must report the four flags
+`BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, and
+`RestrictPublicBuckets` as enabled. Otherwise, every explicit private upload
+and read fails.
+
+Some S3-compatible providers do not implement `GetPublicAccessBlock` (MinIO
+answers `501 NotImplemented`; Hetzner Object Storage does not list it among its
+supported actions). For those providers, set `assumePrivateBuckets: true` on
+the storage:
+
+```ts
+default: {
+  // ...
+  attachmentPrivateBucket: "app-private-files",
+  assumePrivateBuckets: true,
+},
+```
+
+With this option, the module skips the public access block verification and
+logs a warning at startup for each assumed bucket. As a best-effort safety net,
+it calls `GetBucketPolicyStatus` and refuses the bucket when the provider
+reports it public. The module continues when the provider does not implement
+that call (`501 NotImplemented`) or when the bucket has no policy. Any other
+error still fails the verification.
+
+The operator is then responsible for keeping the private bucket private: do not
+attach a public bucket policy, public ACLs, anonymous access rules, or a public
+domain to it. Providers can under-report public access through
+`GetBucketPolicyStatus` (MinIO reports `IsPublic: false` even with an
+anonymous read policy), so do not rely on the safety net alone. The option
+defaults to `false`, which keeps the strict verification.
+
 Additional backends can be declared under `storages`. The name `default` is
 reserved.
 
