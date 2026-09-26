@@ -22,6 +22,15 @@ export interface StorageConfig {
    * rule as external infrastructure instead.
    */
   stagingExpirationDays?: number;
+  /**
+   * Replaces the public access block verification of `attachmentPrivateBucket`
+   * for providers that do not implement it or that reject authenticated writes
+   * when it is enabled. The bucket is still refused when its ACL grants public
+   * access or its policy status is reported public, but providers can
+   * under-report both, so the operator stays responsible for keeping that
+   * bucket private. Defaults to `false`.
+   */
+  assumePrivateBuckets?: boolean;
 }
 
 export interface Config {
@@ -132,6 +141,23 @@ async function setupStagingLifecycleForEntry(
   }
 }
 
+const AssumedPrivateBucketsWarning =
+  "[file-storage-s3] Private bucket enforcement is operator-asserted (assumePrivateBuckets) for bucket";
+
+function collectAssumedPrivateBuckets(config: Config): string[] {
+  return collectStorageEntries(config).flatMap((entry) =>
+    entry.config.assumePrivateBuckets && entry.config.attachmentPrivateBucket
+      ? [entry.config.attachmentPrivateBucket]
+      : [],
+  );
+}
+
+function warnAssumedPrivateBuckets(config: Config): void {
+  for (const bucket of collectAssumedPrivateBuckets(config)) {
+    Logging.Warn(AssumedPrivateBucketsWarning, bucket);
+  }
+}
+
 async function setupStagingLifecycles(config: Config): Promise<void> {
   const entries = collectStorageEntries(config);
   await Promise.all(entries.map(setupStagingLifecycleForEntry));
@@ -141,6 +167,7 @@ export async function construct(config: Config): Promise<void> {
   if (config.storages?.default)
     throw new Error("Named storage 'default' is reserved");
   moduleConfig = config;
+  warnAssumedPrivateBuckets(config);
   await setupStagingLifecycles(config);
   const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
     import("@antelopejs/interface-file-storage"),

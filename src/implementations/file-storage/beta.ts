@@ -5,7 +5,6 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
-  GetPublicAccessBlockCommand,
   HeadObjectCommand,
   type HeadObjectCommandOutput,
   PutObjectCommand,
@@ -28,6 +27,7 @@ import {
   type Visibility,
 } from "@antelopejs/interface-file-storage";
 
+import { assertPrivateBucket } from "./private-bucket";
 import { promote, uploadMetadata } from "./promotion";
 import { getS3Client, getStorageConfig, type StorageConfig } from "../../index";
 
@@ -39,7 +39,6 @@ const VisibilityKeyPrefix = "__visibility__/";
 const PrivateKeyPrefix = `${VisibilityKeyPrefix}private/`;
 const PublicKeyPrefix = `${VisibilityKeyPrefix}public/`;
 const MillisecondsPerSecond = 1000;
-const policyValidatedAt = new WeakMap<S3Client, Set<string>>();
 const CreateOnlyCondition = "*";
 
 interface ErrorMetadata {
@@ -78,27 +77,6 @@ function visibilityForKey(
   return config.defaultVisibility;
 }
 
-async function assertPrivateBucket(
-  client: S3Client,
-  bucket: string,
-): Promise<void> {
-  const validated = policyValidatedAt.get(client) ?? new Set<string>();
-  policyValidatedAt.set(client, validated);
-  if (validated.has(bucket)) return;
-  const response = await client.send(
-    new GetPublicAccessBlockCommand({ Bucket: bucket }),
-  );
-  const block = response.PublicAccessBlockConfiguration;
-  if (
-    !block?.BlockPublicAcls ||
-    !block.IgnorePublicAcls ||
-    !block.BlockPublicPolicy ||
-    !block.RestrictPublicBuckets
-  )
-    throw new Error(`Bucket '${bucket}' must block all public access`);
-  validated.add(bucket);
-}
-
 async function bucketForKey(
   resourceKey: string,
   config: StorageConfig,
@@ -111,7 +89,11 @@ async function bucketForKey(
     throw new Error(
       "attachmentPrivateBucket is required for private overrides",
     );
-  await assertPrivateBucket(client, config.attachmentPrivateBucket);
+  await assertPrivateBucket(
+    client,
+    config.attachmentPrivateBucket,
+    config.assumePrivateBuckets === true,
+  );
   return config.attachmentPrivateBucket;
 }
 

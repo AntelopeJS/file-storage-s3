@@ -6,7 +6,7 @@ The first completed conditional PUT creates the object. A replay with identical 
 
 ## Coordinate storage privacy and expiry
 
-Omitting a visibility override preserves legacy storage selection and public behavior. Applications that need private temporary uploads must select a genuinely private named storage, or request `visibility: "private"` with `attachmentPrivateBucket` configured. Explicit private overrides use the reserved `__visibility__/private/` namespace and require all four bucket public-access-block flags. Staging remains the outermost prefix. This adapter does not change bucket policies, ACLs, CORS, or lifecycle configuration.
+Omitting a visibility override preserves legacy storage selection and public behavior. Applications that need private temporary uploads must select a genuinely private named storage, or request `visibility: "private"` with `attachmentPrivateBucket` configured. Explicit private overrides use the reserved `__visibility__/private/` namespace and require all four bucket public-access-block flags, unless the storage sets `assumePrivateBuckets` (see the README). Staging remains the outermost prefix. This adapter does not change bucket policies, ACLs, CORS, or lifecycle configuration.
 
 Create-only protection lasts while the object exists. Deletion, lifecycle expiry, or promotion cleanup can allow an unexpired upload URL to recreate the source. Old URLs issued before this change can still overwrite their keys or supply reserved metadata until they expire. Drain old upload URLs before relying on the new guarantees. Unconditional writers with separate credentials bypass the condition.
 
