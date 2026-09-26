@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.1.4
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.3...v0.1.4)
+
+### 🚀 Enhancements
+
+- **config:** Allow operators to assume private buckets ([#24](https://github.com/AntelopeJS/file-storage-s3/pull/24))
+
+### 📖 Documentation
+
+- Add public package readme ([#15](https://github.com/AntelopeJS/file-storage-s3/pull/15))
+
+### 🏡 Chore
+
+- Align community files with the organization defaults ([#17](https://github.com/AntelopeJS/file-storage-s3/pull/17))
+- Remove .git-blame-ignore-revs ([#19](https://github.com/AntelopeJS/file-storage-s3/pull/19))
+
+### 🤖 CI
+
+- Harden specialized npm release workflow ([#16](https://github.com/AntelopeJS/file-storage-s3/pull/16))
+- **release:** Release next from a dedicated branch and restore requireCommits ([#20](https://github.com/AntelopeJS/file-storage-s3/pull/20))
+- **release:** Use the shared release workflow with compose services ([#21](https://github.com/AntelopeJS/file-storage-s3/pull/21))
+- Start test services from the shared compose file ([#22](https://github.com/AntelopeJS/file-storage-s3/pull/22))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.3
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.2...v0.1.3)
