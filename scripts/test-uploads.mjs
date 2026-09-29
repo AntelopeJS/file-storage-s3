@@ -167,6 +167,27 @@ test("deleting a source permits recreation until its URL expires", async () => {
   assert.equal(await read(upload.resourceKey), Replacement);
 });
 
+test("camelCase metadata uploads over HTTP and reads back with lowercase keys", async () => {
+  const upload = await CreateUploadUrl(
+    {
+      filename: "context.tar",
+      mimetype: "text/plain",
+      size: Buffer.byteLength(Original),
+      metadata: { tenantId: "tenant", buildId: "build" },
+    },
+    undefined,
+    PrivateStorage,
+  );
+  assert.equal((await put(upload, Original)).status, SuccessStatus);
+  const { metadata } = await GetFileMetadata(
+    upload.resourceKey,
+    PrivateStorage,
+  );
+  assert.equal(metadata.tenantid, "tenant");
+  assert.equal(metadata.buildid, "build");
+  assert.equal(metadata.tenantId, undefined);
+});
+
 async function stagedPrivateUpload() {
   const upload = await CreateUploadUrl({
     filename: "report.txt",

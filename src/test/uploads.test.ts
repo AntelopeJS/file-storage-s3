@@ -6,6 +6,18 @@ import { uploadSignature } from "./upload-signature";
 const TestSecret = "test-secret-key";
 const ConditionHeader = "If-None-Match";
 const OriginHeader = "x-amz-meta-antelope-promotion-origin";
+const MetadataHeaderPrefix = "x-amz-meta-";
+const SignedHeadersParameter = "X-Amz-SignedHeaders";
+
+function signedHeaders(url: URL): string[] {
+  return url.searchParams.get(SignedHeadersParameter)?.split(";") ?? [];
+}
+
+function hoistedMetadata(url: URL): string[] {
+  return [...url.searchParams.keys()].filter((name) =>
+    name.toLowerCase().startsWith(MetadataHeaderPrefix),
+  );
+}
 
 describe("create-only upload signatures", () => {
   it("strips forged promotion metadata case-insensitively and signs a non-proof sentinel", async () => {
@@ -35,6 +47,42 @@ describe("create-only upload signatures", () => {
         TestSecret,
       ),
       expected,
+    );
+  });
+
+  it("signs camelCase metadata as lowercase headers without hoisting them", async () => {
+    const response = await CreateUploadUrl({
+      filename: "context.tar",
+      mimetype: "application/x-tar",
+      size: 3,
+      metadata: { tenantId: "t", buildId: "b" },
+    });
+    const url = new URL(response.uploadUrl);
+    const metadataHeaders = Object.keys(response.headers).filter((name) =>
+      name.toLowerCase().startsWith(MetadataHeaderPrefix),
+    );
+    assert.deepEqual(hoistedMetadata(url), []);
+    for (const name of metadataHeaders) {
+      assert.ok(signedHeaders(url).includes(name), `${name} is not signed`);
+      assert.equal(name, name.toLowerCase());
+    }
+    assert.equal(response.headers["x-amz-meta-tenantid"], "t");
+    assert.equal(response.headers["x-amz-meta-buildid"], "b");
+    assert.equal(
+      uploadSignature(url, response.headers, TestSecret),
+      url.searchParams.get("X-Amz-Signature"),
+    );
+  });
+
+  it("rejects metadata keys that collide once lowercased", async () => {
+    await assert.rejects(
+      CreateUploadUrl({
+        filename: "context.tar",
+        mimetype: "application/x-tar",
+        size: 3,
+        metadata: { tenantId: "a", tenantid: "b" },
+      }),
+      /tenantid/,
     );
   });
 
