@@ -27,6 +27,7 @@ import {
   type Visibility,
 } from "@antelopejs/interface-file-storage";
 
+import { normalizeMetadataKeys } from "./metadata";
 import { assertPrivateBucket } from "./private-bucket";
 import { promote, uploadMetadata } from "./promotion";
 import { getS3Client, getStorageConfig, type StorageConfig } from "../../index";
@@ -136,7 +137,7 @@ function validateUploadRequest(
 function buildMetadata(request: UploadRequest): Record<string, string> {
   return uploadMetadata({
     filename: request.filename,
-    ...request.metadata,
+    ...normalizeMetadataKeys(request.metadata),
   });
 }
 

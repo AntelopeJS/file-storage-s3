@@ -116,6 +116,16 @@ Read [UPLOADS.md](UPLOADS.md) before deploying. It documents promotion,
 privacy, expiry, CORS, conditional-write requirements, retries, and the trust
 boundary for S3-compatible providers.
 
+## Metadata keys
+
+S3 stores user metadata as `x-amz-meta-*` headers, whose names are
+case-insensitive and lowercase on the wire. The module lowercases metadata keys
+before signing an upload, so `{ tenantId: "t" }` becomes the signed header
+`x-amz-meta-tenantid`. `GetFileMetadata` returns the keys S3 stores, in
+lowercase: read `metadata.tenantid`, not `metadata.tenantId`. Keys that only
+differ by casing, such as `tenantId` and `tenantid`, collide once lowercased and
+make `CreateUploadUrl` throw instead of silently dropping one value.
+
 ## Development
 
 Tests use a disposable Moto server:

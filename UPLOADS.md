@@ -32,7 +32,7 @@ See AWS documentation for [conditional writes](https://docs.aws.amazon.com/Amazo
 
 ## Verification
 
-The Antelope runner discovers the provider-neutral conformance suite from the implemented interface's `dist/tests` directory. Those tests use the public interface and real HTTP uploads and reads against Moto, including explicit public and private visibility, metadata preservation, promotion replay, conflicts, cleanup, and validation. Provider-local tests retain S3 command, routing, lifecycle, and independent SigV4 HMAC assertions. The runner also executes all 15 HTTP/fault tests in `scripts/test-uploads.mjs` in an isolated process, keeping their module lifecycle and SDK fault injection separate from the shared suite.
+The Antelope runner discovers the provider-neutral conformance suite from the implemented interface's `dist/tests` directory. Those tests use the public interface and real HTTP uploads and reads against Moto, including explicit public and private visibility, metadata preservation, promotion replay, conflicts, cleanup, and validation. Provider-local tests retain S3 command, routing, lifecycle, and independent SigV4 HMAC assertions. The runner also executes all 16 HTTP/fault tests in `scripts/test-uploads.mjs` in an isolated process, keeping their module lifecycle and SDK fault injection separate from the shared suite.
 
 Start disposable Moto 5.2.3 before running the tests. CI supplies a pinned Moto service; locally, run the server in another terminal. `S3_UPLOAD_TEST_ENDPOINT` defaults to `http://127.0.0.1:5005` and must be a loopback endpoint. The root test fixture creates a public-read bucket and a separate bucket with all public-access-block flags enabled.
 
