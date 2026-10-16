@@ -124,6 +124,11 @@ The client sends the file with `PUT upload.uploadUrl` and every header of `uploa
 
 [UPLOADS.md](UPLOADS.md) details these guarantees: create-only uploads, promotion, privacy and expiry, private bucket verification, metadata keys and CORS.
 
+## Documentation
+
+- [File storage](https://github.com/AntelopeJS/interface-file-storage/tree/main/docs): the `@antelopejs/interface-file-storage` contract this module implements
+- [Configuration](https://framework.antelopejs.com/docs/concepts/configuration): module sources, `config` blocks and config variables in `antelope.config.ts`
+
 ## Compatibility
 
 | Package                              | Supported range  |
