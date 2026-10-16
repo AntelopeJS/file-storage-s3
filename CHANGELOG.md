@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.1.6
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.5...v0.1.6)
+
+### 📖 Documentation
+
+- Rewrite the README ([#29](https://github.com/AntelopeJS/file-storage-s3/pull/29))
+- **agents:** Simplify repository guidance ([#30](https://github.com/AntelopeJS/file-storage-s3/pull/30))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.5
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.4...v0.1.5)
