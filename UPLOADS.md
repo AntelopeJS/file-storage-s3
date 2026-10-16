@@ -70,7 +70,7 @@ moto_server -H 127.0.0.1 -p 5005
 pnpm test
 ```
 
-The module requires published `@antelopejs/interface-file-storage >=0.1.3 <1.0.0`, which includes `internal.promoteFile`, `FileConflictError`, and the shared suite. The lockfile resolves version 0.1.3. Validation uses a clean registry-only installation with no packed preview or dependency overlay.
+The module requires published `@antelopejs/interface-file-storage >=0.1.4 <1.0.0`, which includes `internal.promoteFile`, `FileConflictError`, and the shared suite. The lockfile resolves version 0.1.4. Validation uses a clean registry-only installation with no packed preview or dependency overlay.
 
 The provider-specific HTTP suite creates randomly named buckets and exercises first-writer-wins, byte-changing replay, concurrent PUTs, storage routing, deletion/recreation, canonical promotion, lost acknowledgements, competing promotions, cleanup failure, interrupted source streams, foreign or incomplete finals, provenance transplantation, and late private orphans. SDK fault injection supplies failures and delays while object operations use real local HTTP. It can also run independently:
 
