@@ -6,7 +6,7 @@ The first completed conditional PUT creates the object. A replay with identical 
 
 ## Coordinate storage privacy and expiry
 
-Omitting a visibility override preserves legacy storage selection and public behavior. Applications that need private temporary uploads must select a genuinely private named storage, or request `visibility: "private"` with `attachmentPrivateBucket` configured. Explicit private overrides use the reserved `__visibility__/private/` namespace and require all four bucket public-access-block flags, unless the storage sets `assumePrivateBuckets` (see the README). Staging remains the outermost prefix. This adapter does not change bucket policies, ACLs, CORS, or lifecycle configuration.
+Omitting a visibility override preserves legacy storage selection and public behavior. Applications that need private temporary uploads must select a genuinely private named storage, or request `visibility: "private"` with `attachmentPrivateBucket` configured. Explicit private overrides use the reserved `__visibility__/private/` namespace and require all four bucket public-access-block flags, unless the storage sets `assumePrivateBuckets` (see [Private bucket verification](#private-bucket-verification)). Staging remains the outermost prefix. This adapter does not change bucket policies, ACLs, CORS, or lifecycle configuration.
 
 Create-only protection lasts while the object exists. Deletion, lifecycle expiry, or promotion cleanup can allow an unexpired upload URL to recreate the source. Old URLs issued before this change can still overwrite their keys or supply reserved metadata until they expire. Drain old upload URLs before relying on the new guarantees. Unconditional writers with separate credentials bypass the condition.
 
@@ -23,6 +23,33 @@ This proof relies on exclusive generated keys and trusted credential holders, no
 Promotion transfers the object through the application server, increasing bandwidth, latency, and potential egress charges compared with server-side copying. Node streams provide backpressure; the provider does not buffer the entire object. A bounded intermediary stream and abort signal contain source errors without feeding them into the SDK checksum stream. Streams are not rewindable: failed streaming PUTs are not automatically replayed, and there is no unconditional or 409 retry fallback. A caller retry opens a new source stream after checking the final destination. The backend's single-PUT size limits still apply; this provider adds neither multipart promotion nor a new upload-size limit.
 
 S3-compatible endpoints must enforce atomic conditional PUT and complete-object publication, with consistent HEAD/GET reads. CopyObject conditional behavior is not used for promotion. Emulator support is not proof that every compatible endpoint satisfies this contract.
+
+## Private bucket verification
+
+Before its first use, the module verifies that `attachmentPrivateBucket` blocks all public access: `GetPublicAccessBlock` must report the four flags `BlockPublicAcls`, `IgnorePublicAcls`, `BlockPublicPolicy`, and `RestrictPublicBuckets` as enabled. Otherwise, every explicit private upload and read fails.
+
+Some S3-compatible providers cannot satisfy this verification. MinIO does not implement `GetPublicAccessBlock` and answers `501 NotImplemented`. Other providers implement it but reject authenticated writes when it is enabled: on Hetzner Object Storage, `BlockPublicAcls` or `BlockPublicPolicy` makes every authenticated `PutObject` (presigned uploads included) fail with `403`, and `RestrictPublicBuckets` turns the `412` of a create-only conditional upload into a `403`. For those providers, set `assumePrivateBuckets: true` on the storage:
+
+```ts
+default: {
+  // ...
+  attachmentPrivateBucket: "app-private-files",
+  assumePrivateBuckets: true,
+},
+```
+
+With this option, the module skips the public access block verification and logs a warning at startup for each assumed bucket. It still verifies the bucket before its first use:
+
+- `GetBucketAcl` must not return any grant to the `AllUsers` or `AuthenticatedUsers` groups, whatever the permission.
+- `GetBucketPolicyStatus` must not report the bucket public. A bucket without a policy (`NoSuchBucketPolicy`) passes.
+
+The module continues when the provider does not implement one of these calls (`501 NotImplemented`). Any other error, such as `AccessDenied`, fails the verification.
+
+The operator is then responsible for keeping the private bucket private: do not attach a public bucket policy, public ACLs, anonymous access rules, or a public domain to it. Providers can under-report public access (MinIO reports `IsPublic: false` through `GetBucketPolicyStatus` even with an anonymous read policy), so do not rely on these checks alone. The option defaults to `false`, which keeps the strict verification.
+
+## Metadata keys
+
+S3 stores user metadata as `x-amz-meta-*` headers, whose names are case-insensitive and lowercase on the wire. The module lowercases metadata keys before signing an upload, so `{ tenantId: "t" }` becomes the signed header `x-amz-meta-tenantid`. `GetFileMetadata` returns the keys S3 stores, in lowercase: read `metadata.tenantid`, not `metadata.tenantId`. Keys that only differ by casing, such as `tenantId` and `tenantid`, collide once lowercased and make `CreateUploadUrl` throw instead of silently dropping one value.
 
 ## Browser CORS requirements
 
