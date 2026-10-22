@@ -1,5 +1,6 @@
 import { extname } from "node:path";
 import { randomUUID } from "node:crypto";
+import type { Readable } from "node:stream";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   CopyObjectCommand,
@@ -18,6 +19,7 @@ import {
   type PresignedReadResponse,
   type PresignedUploadResponse,
   type PromoteFileResponse,
+  type ReadFileResponse,
   STAGING_PREFIX,
   stripStagingPrefix,
   toStagedKey,
@@ -355,6 +357,29 @@ export namespace internal {
       url,
       expiresAt: Date.now() + effectiveExpiresIn * MillisecondsPerSecond,
     };
+  };
+
+  export const readFile = async (
+    resourceKey: string,
+    storage?: string,
+  ): Promise<ReadFileResponse> => {
+    const client = getS3Client(storage);
+    const config = getStorageConfig(storage);
+    const bucket = await bucketForKey(resourceKey, config, client);
+    try {
+      const response = await client.send(
+        new GetObjectCommand({ Bucket: bucket, Key: resourceKey }),
+      );
+      return {
+        // In Node.js the SDK returns the object body as a Readable.
+        body: response.Body as Readable,
+        size: response.ContentLength ?? 0,
+        mimetype: response.ContentType ?? DefaultMimetype,
+      };
+    } catch (error: unknown) {
+      if (isNotFoundError(error)) throw new FileNotFoundError(resourceKey);
+      throw error;
+    }
   };
 
   export const deleteFile = async (
