@@ -10,7 +10,7 @@ The first completed conditional PUT creates the object. A replay with identical 
 
 ## Server-side reads
 
-`ReadFile` (`@antelopejs/interface-file-storage` >=0.1.6) opens the object with one `GetObjectCommand` from the server, in whichever bucket its visibility routes to, and returns the SDK's body stream with `ContentLength` and `ContentType`; nothing is buffered. A missing object throws `FileNotFoundError`. The server needs network access to the S3 endpoint; a presigned read URL is not involved.
+`ReadFile` (`@antelopejs/interface-file-storage` >=0.2.0) opens the object with one `GetObjectCommand` from the server, in whichever bucket its visibility routes to, and returns the SDK's body stream with `ContentLength` and `ContentType`; nothing is buffered. A missing object throws `FileNotFoundError`. The server needs network access to the S3 endpoint; a presigned read URL is not involved.
 
 ## Coordinate storage privacy and expiry
 
