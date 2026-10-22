@@ -12,8 +12,8 @@ importers:
         specifier: '>=0.2.4 <1.0.0'
         version: 0.2.4
       '@antelopejs/interface-file-storage':
-        specifier: '>=0.1.4 <1.0.0'
-        version: 0.1.4(@antelopejs/interface-core@0.2.4)
+        specifier: '>=0.1.5 <1.0.0'
+        version: 0.1.5(@antelopejs/interface-core@0.2.4)
       '@aws-sdk/client-s3':
         specifier: ^3.1016.0
         version: 3.1016.0
@@ -71,8 +71,8 @@ packages:
   '@antelopejs/interface-core@0.2.4':
     resolution: {integrity: sha512-2qF6/KwahCQvvNuC/piUvPWD4wq2Npmco941HMg2/bMBoJKbhMH16WcXXRvPYznNSkU0U+6vqK6KE+2N5NojSA==}
 
-  '@antelopejs/interface-file-storage@0.1.4':
-    resolution: {integrity: sha512-WT3iGUcQFBnTxdUVUdR9wAYXTbll61NJxC/aeU2VzzfRdlVDuPqeJIIxlsE4qepHxazMVQyQDdxdcyeYQVAykg==}
+  '@antelopejs/interface-file-storage@0.1.5':
+    resolution: {integrity: sha512-VABegi5Mj2xrVLxLvnjYsowWdiDoh9QtRuVxyOL9otbNxCQVKFhmW7WZi8zIObSz+JNK3WFtqd+EoHmn3bRgFA==}
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
 
@@ -2852,7 +2852,7 @@ snapshots:
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-file-storage@0.1.4(@antelopejs/interface-core@0.2.4)':
+  '@antelopejs/interface-file-storage@0.1.5(@antelopejs/interface-core@0.2.4)':
     dependencies:
       '@antelopejs/interface-core': 0.2.4
 

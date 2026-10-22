@@ -2,7 +2,11 @@
 
 `CreateUploadUrl` allocates a UUID key and signs `If-None-Match: *` for every PUT, including staged uploads and explicitly selected public storage. Clients must send the returned `headers`, including `If-None-Match`. Removing or changing that signed condition invalidates the signature. The request and response interfaces are unchanged; no versioned bucket or seals API is required.
 
-The first completed conditional PUT creates the object. A replay with identical or different bytes cannot overwrite an existing object and receives HTTP 412. Concurrent requests can also receive HTTP 409. This adapter only issues URLs: it does not upload, retry 409 responses, or remove conditions. Callers must preserve the condition on any retry. After a lost acknowledgement, a 412 response is not proof that the intended upload succeeded; reconcile through the application's authorized upload record.
+The first completed conditional PUT creates the object. A replay with identical or different bytes cannot overwrite an existing object and receives HTTP 412. Concurrent requests can also receive HTTP 409. For browser uploads this adapter only issues URLs: it does not upload, retry 409 responses, or remove conditions. Callers must preserve the condition on any retry. After a lost acknowledgement, a 412 response is not proof that the intended upload succeeded; reconcile through the application's authorized upload record.
+
+## Server-side writes
+
+`WriteFile` (`@antelopejs/interface-file-storage` >=0.1.5) stores bytes held by the server under a fresh UUID key, with the same create-only `If-None-Match: *` condition: one `PutObjectCommand`, no presigned URL. The body must match the declared `size`, and the request passes the same type and size constraints as `CreateUploadUrl`. A 412 answer throws `FileConflictError`; the adapter does not retry.
 
 ## Coordinate storage privacy and expiry
 

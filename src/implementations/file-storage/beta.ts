@@ -25,6 +25,7 @@ import {
   type UploadRequest,
   UploadValidationError,
   type Visibility,
+  type WriteFileResponse,
 } from "@antelopejs/interface-file-storage";
 
 import { normalizeMetadataKeys } from "./metadata";
@@ -290,6 +291,42 @@ export namespace internal {
       expiresAt: Date.now() + expiresIn * MillisecondsPerSecond,
       headers: buildUploadHeaders(request, metadata),
     };
+  };
+
+  export const writeFile = async (
+    request: UploadRequest,
+    body: Uint8Array,
+    constraints?: UploadConstraints,
+    storage?: string,
+  ): Promise<WriteFileResponse> => {
+    validateUploadRequest(request, constraints);
+    if (body.byteLength !== request.size)
+      throw new UploadValidationError(
+        `Body size ${body.byteLength} differs from the declared size ${request.size}`,
+        "SIZE_EXCEEDED",
+      );
+    const client = getS3Client(storage);
+    const config = getStorageConfig(storage);
+    const resourceKey = generateResourceKey(request);
+    const bucket = await bucketForKey(resourceKey, config, client);
+    try {
+      await client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: resourceKey,
+          Body: body,
+          ContentType: request.mimetype,
+          ContentLength: request.size,
+          Metadata: buildMetadata(request),
+          IfNoneMatch: CreateOnlyCondition,
+        }),
+      );
+    } catch (error: unknown) {
+      if (isErrorLike(error) && error.$metadata?.httpStatusCode === 412)
+        throw new FileConflictError(resourceKey);
+      throw error;
+    }
+    return { resourceKey };
   };
 
   export const createReadUrl = async (
