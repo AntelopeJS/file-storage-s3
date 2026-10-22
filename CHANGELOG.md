@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.7
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.6...v0.1.7)
+
+### 🚀 Enhancements
+
+- Implement WriteFile with a conditional PutObject ([#32](https://github.com/AntelopeJS/file-storage-s3/pull/32))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.6
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.5...v0.1.6)
