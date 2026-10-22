@@ -32,7 +32,7 @@
     "dev": "ajs project run -w -p playground",
     "format": "oxfmt .",
     "lint:fix": "oxlint --fix",
-    "lint": "oxlint",
+    "lint": "oxlint && antelopejs-check-interface-ranges",
     "prepack": "pnpm run build",
     "release": "pnpm run lint && pnpm run test && pnpm run prepack && release-it",
     "test": "pnpm run build && ajs module test .",
@@ -41,7 +41,7 @@
   },
   "dependencies": {
     "@antelopejs/interface-core": ">=0.2.4 <1.0.0",
-    "@antelopejs/interface-file-storage": ">=0.1.5 <1.0.0",
+    "@antelopejs/interface-file-storage": ">=0.1.5 <0.2.0",
     "@aws-sdk/client-s3": "^3.1016.0",
     "@aws-sdk/s3-request-presigner": "^3.1016.0"
   },
