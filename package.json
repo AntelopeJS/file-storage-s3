@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/file-storage-s3",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "S3-compatible storage module for AntelopeJS (AWS S3, Cloudflare R2), implementing the File Storage interface with presigned URLs",
   "keywords": [
     "antelopejs",
