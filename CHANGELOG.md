@@ -4,6 +4,11 @@
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.8...v0.1.9)
 
+### Upgrade notes
+
+- Implements `ReadFile` from `@antelopejs/interface-file-storage` 0.1.6 with one `GetObjectCommand` in the bucket the key's visibility routes to; the SDK body stream is returned as is with `ContentLength` and `ContentType`, and a missing object throws `FileNotFoundError` ([#33](https://github.com/AntelopeJS/file-storage-s3/pull/33)). The server needs network access to the S3 endpoint, not to a presigned URL.
+- Implements `@antelopejs/interface-file-storage` `>=0.1.6 <0.2.0`. Upgrade it together with interface-file-storage 0.1.6: a provider without `readFile` (0.1.8 and older) fails to construct against it.
+
 ### 🚀 Enhancements
 
 - Implement ReadFile with GetObject ([#33](https://github.com/AntelopeJS/file-storage-s3/pull/33))
