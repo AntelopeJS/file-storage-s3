@@ -8,6 +8,10 @@ The first completed conditional PUT creates the object. A replay with identical 
 
 `WriteFile` (`@antelopejs/interface-file-storage` >=0.1.5) stores bytes held by the server under a fresh UUID key, with the same create-only `If-None-Match: *` condition: one `PutObjectCommand`, no presigned URL. The body must match the declared `size`, and the request passes the same type and size constraints as `CreateUploadUrl`. A 412 answer throws `FileConflictError`; the adapter does not retry.
 
+## Server-side reads
+
+`ReadFile` (`@antelopejs/interface-file-storage` >=0.1.6) opens the object with one `GetObjectCommand` from the server, in whichever bucket its visibility routes to, and returns the SDK's body stream with `ContentLength` and `ContentType`; nothing is buffered. A missing object throws `FileNotFoundError`. The server needs network access to the S3 endpoint; a presigned read URL is not involved.
+
 ## Coordinate storage privacy and expiry
 
 Omitting a visibility override preserves legacy storage selection and public behavior. Applications that need private temporary uploads must select a genuinely private named storage, or request `visibility: "private"` with `attachmentPrivateBucket` configured. Explicit private overrides use the reserved `__visibility__/private/` namespace and require all four bucket public-access-block flags, unless the storage sets `assumePrivateBuckets` (see [Private bucket verification](#private-bucket-verification)). Staging remains the outermost prefix. This adapter does not change bucket policies, ACLs, CORS, or lifecycle configuration.
