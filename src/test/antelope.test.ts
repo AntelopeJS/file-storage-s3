@@ -28,7 +28,7 @@ export default defineConfig({
       source: {
         type: "local",
         path: ".",
-        installCommand: ["pnpm exec tsc"],
+        installCommand: ["pnpm run build"],
       },
       config: {
         default: {
