@@ -10,7 +10,7 @@ The S3-compatible (AWS S3, Cloudflare R2) implementation of `@antelopejs/interfa
 
 ## Versioning
 
-- `@antelopejs/interface-file-storage` stays capped below the next minor (`>=0.1.6 <0.2.0`): 0.2.0 adds a required `readFile` handler. `pnpm lint` runs `antelopejs-check-interface-ranges`, which rejects a range that does not stop below the next minor.
+- `@antelopejs/interface-file-storage` stays capped below the next minor (`>=0.1.6 <0.2.0`), because a new minor can add required handlers. `pnpm lint` runs `antelopejs-check-interface-ranges`, which rejects a range that does not stop below the next minor.
 - When a dependency range changes, update the compatibility table in `README.md` too.
 - A release that needs action from users gets an `### Upgrade notes` section in `CHANGELOG.md`, above the generated entries.
 
