@@ -1,4 +1,5 @@
 import { promisify } from "node:util";
+import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 
 import { MotoEndpoint, setupMoto } from "./moto";
@@ -14,7 +15,7 @@ before(async function () {
 describe("S3 HTTP fault and conditional-write coverage", () => {
   it("passes the isolated provider-specific HTTP suite", async function () {
     this.timeout(IntegrationTimeout);
-    const result = await execute(
+    const run = execute(
       process.execPath,
       ["--test", "scripts/test-uploads.mjs"],
       {
@@ -22,6 +23,8 @@ describe("S3 HTTP fault and conditional-write coverage", () => {
         timeout: IntegrationTimeout,
       },
     );
+    await assert.doesNotReject(run);
+    const result = await run;
     process.stdout.write(result.stdout);
     process.stderr.write(result.stderr);
   });

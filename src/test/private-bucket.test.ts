@@ -258,7 +258,9 @@ function assumedPolicyStatusSuite(): void {
 }
 
 describe("private bucket verification", () => {
-  describe("strict mode (default)", strictModeSuite);
+  describe("strict mode (default)", () => {
+    strictModeSuite();
+  });
   describe("assumed private buckets", () => {
     assumedAclSuite();
     assumedPolicyStatusSuite();
