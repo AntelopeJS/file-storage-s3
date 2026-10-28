@@ -371,7 +371,6 @@ export namespace internal {
         new GetObjectCommand({ Bucket: bucket, Key: resourceKey }),
       );
       return {
-        // In Node.js the SDK returns the object body as a Readable.
         body: response.Body as Readable,
         size: response.ContentLength ?? 0,
         mimetype: response.ContentType ?? DefaultMimetype,
