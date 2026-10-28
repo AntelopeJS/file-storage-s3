@@ -27,16 +27,24 @@ export interface PromotionTarget {
   destinationKey: string;
 }
 
-interface ErrorMetadata {
-  httpStatusCode?: number;
+interface MissingObjectError {
+  $metadata: { httpStatusCode: typeof NotFoundStatus };
 }
 
-interface StorageError {
-  $metadata?: ErrorMetadata;
+function isObject(value: unknown): value is object {
+  return (
+    (typeof value === "object" && value !== null) || typeof value === "function"
+  );
 }
 
-function isMissing(error: unknown): boolean {
-  return (error as StorageError)?.$metadata?.httpStatusCode === NotFoundStatus;
+function isMissing(error: unknown): error is MissingObjectError {
+  if (!isObject(error) || !("$metadata" in error)) return false;
+  const metadata = error.$metadata;
+  return (
+    isObject(metadata) &&
+    "httpStatusCode" in metadata &&
+    metadata.httpStatusCode === NotFoundStatus
+  );
 }
 
 function userMetadata(
@@ -49,9 +57,7 @@ function userMetadata(
   );
 }
 
-export function uploadMetadata(
-  metadata: Record<string, string>,
-): Record<string, string> {
+export function uploadMetadata(metadata: Record<string, string>) {
   return { ...userMetadata(metadata), [OriginHeader]: UnpromotedOrigin };
 }
 

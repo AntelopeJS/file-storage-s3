@@ -37,15 +37,8 @@ function isErrorLike(error: unknown): error is ErrorLike {
   return typeof error === "object" && error !== null;
 }
 
-function isAclUnavailable(error: unknown): boolean {
-  return isErrorLike(error) && isNotImplementedError(error);
-}
-
-function isPolicyStatusUnavailable(error: unknown): boolean {
-  return (
-    isErrorLike(error) &&
-    (isNotImplementedError(error) || error.name === NoBucketPolicyErrorName)
-  );
+function isPolicyStatusUnavailable(error: ErrorLike): boolean {
+  return isNotImplementedError(error) || error.name === NoBucketPolicyErrorName;
 }
 
 function isPublicGrant(grant: Grant): boolean {
@@ -79,7 +72,7 @@ async function hasPublicAclGrant(
     );
     return (response.Grants ?? []).some(isPublicGrant);
   } catch (error: unknown) {
-    if (isAclUnavailable(error)) return false;
+    if (isErrorLike(error) && isNotImplementedError(error)) return false;
     throw error;
   }
 }
@@ -94,7 +87,7 @@ async function isBucketReportedPublic(
     );
     return response.PolicyStatus?.IsPublic === true;
   } catch (error: unknown) {
-    if (isPolicyStatusUnavailable(error)) return false;
+    if (isErrorLike(error) && isPolicyStatusUnavailable(error)) return false;
     throw error;
   }
 }

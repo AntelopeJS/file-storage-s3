@@ -1,13 +1,7 @@
 {
   "rules": {
-    "anti-slop/no-chained-type-assertions": 1,
-    "anti-slop/no-known-value-widening": 4,
-    "anti-slop/no-runtime-typeof": 1,
-    "anti-slop/no-shape-in-symbol-names": 3,
-    "anti-slop/no-unknown-parameters": 9,
-    "anti-slop/no-unknown-returns": 4,
-    "anti-slop/require-safety-comment-for-type-assertion": 9,
-    "typescript/unbound-method": 1
+    "anti-slop/no-unknown-parameters": 1,
+    "anti-slop/require-safety-comment-for-type-assertion": 2
   },
   "oversizeFiles": {}
 }

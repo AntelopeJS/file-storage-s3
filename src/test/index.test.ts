@@ -13,6 +13,7 @@ import {
   CopyObjectCommand,
   DeleteObjectCommand,
   GetBucketLifecycleConfigurationCommand,
+  type GetBucketLifecycleConfigurationCommandOutput,
   GetObjectCommand,
   GetPublicAccessBlockCommand,
   HeadObjectCommand,
@@ -43,7 +44,7 @@ interface StoredFile {
   metadata?: Record<string, string>;
 }
 
-interface NotFoundErrorShape extends Error {
+interface S3NotFoundError extends Error {
   $metadata: NotFoundMetadata;
 }
 
@@ -63,7 +64,6 @@ interface NotFoundMetadata {
   httpStatusCode: number;
 }
 
-const originalSend = S3Client.prototype.send;
 const storageByResourceKey: Map<string, StoredFile> = new Map();
 
 describe("S3 commands and URL mapping", () => {
@@ -72,7 +72,7 @@ describe("S3 commands and URL mapping", () => {
   });
 
   after(() => {
-    S3Client.prototype.send = originalSend;
+    Reflect.deleteProperty(S3Client.prototype, "send");
   });
 
   beforeEach(() => {
@@ -321,11 +321,11 @@ function getCommandResourceKey(command: SendCommand): string {
   return resourceKey;
 }
 
-function createNotFoundError(): NotFoundErrorShape {
-  const error = new Error("Not found") as NotFoundErrorShape;
-  error.name = "NotFound";
-  error.$metadata = { httpStatusCode: 404 };
-  return error;
+function createNotFoundError(): S3NotFoundError {
+  return Object.assign(new Error("Not found"), {
+    name: "NotFound",
+    $metadata: { httpStatusCode: 404 },
+  });
 }
 
 function resetStorage(): void {
@@ -358,6 +358,14 @@ function seedStagedFile(): void {
   });
 }
 
+type LifecycleCommand =
+  | GetBucketLifecycleConfigurationCommand
+  | PutBucketLifecycleConfigurationCommand;
+type LifecycleResponse = Omit<
+  GetBucketLifecycleConfigurationCommandOutput,
+  "$metadata"
+>;
+
 interface LifecycleCapture {
   input?: PutBucketLifecycleConfigurationCommandInput;
 }
@@ -366,7 +374,9 @@ function createLifecycleMockClient(
   existingRules: LifecycleRule[],
   capture: LifecycleCapture,
 ): S3Client {
-  const send = (command: unknown): Promise<unknown> => {
+  const send = (
+    command: LifecycleCommand,
+  ): Promise<LifecycleResponse | Record<string, never>> => {
     if (command instanceof GetBucketLifecycleConfigurationCommand) {
       return Promise.resolve({ Rules: existingRules });
     }
@@ -376,7 +386,7 @@ function createLifecycleMockClient(
     }
     return Promise.reject(new Error("Unexpected lifecycle command"));
   };
-  return { send } as unknown as S3Client;
+  return Object.assign(new S3Client({ region: "us-east-1" }), { send });
 }
 
 describe("staging lifecycle rule", () => {
