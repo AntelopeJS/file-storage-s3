@@ -15,30 +15,63 @@ const PublicGranteeUris = new Set([
 ]);
 const validatedBuckets = new WeakMap<S3Client, Set<string>>();
 
-interface ErrorMetadata {
-  httpStatusCode?: number;
-}
-
-interface ErrorLike {
-  name?: string;
-  $metadata?: ErrorMetadata;
-}
-
 type BucketVerifier = (client: S3Client, bucket: string) => Promise<void>;
 
-function isNotImplementedError(error: ErrorLike): boolean {
+function isPropertyHolder(value: unknown): value is object {
   return (
-    error.name === NotImplementedErrorName ||
-    error.$metadata?.httpStatusCode === NotImplementedStatusCode
+    (typeof value === "object" && value !== null) || typeof value === "function"
   );
 }
 
-function isErrorLike(error: unknown): error is ErrorLike {
+interface NamedError<Name extends string> {
+  name: Name;
+}
+
+interface StatusCodeError<StatusCode extends number> {
+  $metadata: { httpStatusCode: StatusCode };
+}
+
+function hasName<Name extends string>(
+  error: unknown,
+  name: Name,
+): error is NamedError<Name> {
+  return isPropertyHolder(error) && "name" in error && error.name === name;
+}
+
+function hasStatusCode<StatusCode extends number>(
+  error: unknown,
+  statusCode: StatusCode,
+): error is StatusCodeError<StatusCode> {
+  if (!isPropertyHolder(error) || !("$metadata" in error)) return false;
+  const metadata = error.$metadata;
+  return (
+    isPropertyHolder(metadata) &&
+    "httpStatusCode" in metadata &&
+    metadata.httpStatusCode === statusCode
+  );
+}
+
+type NotImplementedError =
+  | NamedError<typeof NotImplementedErrorName>
+  | StatusCodeError<typeof NotImplementedStatusCode>;
+
+function isNotImplementedError(error: unknown): error is NotImplementedError {
+  return (
+    hasName(error, NotImplementedErrorName) ||
+    hasStatusCode(error, NotImplementedStatusCode)
+  );
+}
+
+function isErrorLike(error: unknown): error is object {
   return typeof error === "object" && error !== null;
 }
 
-function isPolicyStatusUnavailable(error: ErrorLike): boolean {
-  return isNotImplementedError(error) || error.name === NoBucketPolicyErrorName;
+function isPolicyStatusUnavailable(
+  error: unknown,
+): error is NotImplementedError | NamedError<typeof NoBucketPolicyErrorName> {
+  return (
+    isNotImplementedError(error) || hasName(error, NoBucketPolicyErrorName)
+  );
 }
 
 function isPublicGrant(grant: Grant): boolean {

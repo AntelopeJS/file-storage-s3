@@ -45,15 +45,6 @@ const PublicKeyPrefix = `${VisibilityKeyPrefix}public/`;
 const MillisecondsPerSecond = 1000;
 const CreateOnlyCondition = "*";
 
-interface ErrorMetadata {
-  httpStatusCode?: number;
-}
-
-interface ErrorLike {
-  name?: string;
-  $metadata?: ErrorMetadata;
-}
-
 function generateResourceKey(request: UploadRequest): string {
   const fileExtension = extname(request.filename);
   const resourceId = randomUUID();
@@ -185,7 +176,7 @@ function buildPublicReadUrl(
   return `${publicUrl.replace(/\/$/, "")}/${resourceKey}`;
 }
 
-function isErrorLike(error: unknown): error is ErrorLike {
+function isErrorLike(error: unknown): error is object {
   if (typeof error !== "object" || !error) {
     return false;
   }
@@ -197,11 +188,46 @@ function isErrorLike(error: unknown): error is ErrorLike {
   return hasName || hasMetadata;
 }
 
-function isNotFoundError(error: ErrorLike): boolean {
+function isPropertyHolder(value: unknown): value is object {
   return (
-    error.name === "NotFound" ||
-    error.$metadata?.httpStatusCode === NotFoundStatusCode
+    (typeof value === "object" && value !== null) || typeof value === "function"
   );
+}
+
+interface NamedError<Name extends string> {
+  name: Name;
+}
+
+interface StatusCodeError<StatusCode extends number> {
+  $metadata: { httpStatusCode: StatusCode };
+}
+
+function hasName<Name extends string>(
+  error: unknown,
+  name: Name,
+): error is NamedError<Name> {
+  return isPropertyHolder(error) && "name" in error && error.name === name;
+}
+
+function hasStatusCode<StatusCode extends number>(
+  error: unknown,
+  statusCode: StatusCode,
+): error is StatusCodeError<StatusCode> {
+  if (!isPropertyHolder(error) || !("$metadata" in error)) return false;
+  const metadata = error.$metadata;
+  return (
+    isPropertyHolder(metadata) &&
+    "httpStatusCode" in metadata &&
+    metadata.httpStatusCode === statusCode
+  );
+}
+
+function isNotFoundError(
+  error: unknown,
+): error is
+  | NamedError<"NotFound">
+  | StatusCodeError<typeof NotFoundStatusCode> {
+  return hasName(error, "NotFound") || hasStatusCode(error, NotFoundStatusCode);
 }
 
 function mapHeadObjectToFileMetadata(
@@ -314,7 +340,7 @@ export namespace internal {
         }),
       );
     } catch (error: unknown) {
-      if (isErrorLike(error) && error.$metadata?.httpStatusCode === 412)
+      if (isErrorLike(error) && hasStatusCode(error, 412))
         throw new FileConflictError(resourceKey);
       throw error;
     }

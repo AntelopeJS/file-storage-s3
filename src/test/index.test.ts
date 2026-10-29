@@ -48,7 +48,6 @@ interface S3NotFoundError extends Error {
   $metadata: NotFoundMetadata;
 }
 
-type S3SendMethod = S3Client["send"];
 type SendCommand =
   | DeleteObjectCommand
   | HeadObjectCommand
@@ -68,7 +67,7 @@ const storageByResourceKey: Map<string, StoredFile> = new Map();
 
 describe("S3 commands and URL mapping", () => {
   before(() => {
-    S3Client.prototype.send = createMockSendMethod();
+    Object.assign(S3Client.prototype, { send: mockSend });
   });
 
   after(() => {
@@ -196,41 +195,37 @@ describe("S3 commands and URL mapping", () => {
   });
 });
 
-function createMockSendMethod(): S3SendMethod {
-  return ((command: unknown) => {
-    try {
-      if (command instanceof HeadObjectCommand) {
-        return Promise.resolve(handleHeadObjectCommand(command));
-      }
-      if (command instanceof GetObjectCommand) {
-        return Promise.resolve(handleGetObjectCommand(command));
-      }
-      if (command instanceof PutObjectCommand) {
-        return handlePutObjectCommand(command);
-      }
-      if (command instanceof GetPublicAccessBlockCommand) {
-        return Promise.resolve({
-          PublicAccessBlockConfiguration: {
-            BlockPublicAcls: true,
-            IgnorePublicAcls: true,
-            BlockPublicPolicy: true,
-            RestrictPublicBuckets: true,
-          },
-        });
-      }
-      if (command instanceof DeleteObjectCommand) {
-        return Promise.resolve(handleDeleteObjectCommand(command));
-      }
-      if (command instanceof CopyObjectCommand) {
-        return Promise.resolve(handleCopyObjectCommand(command));
-      }
-    } catch (error: unknown) {
-      return Promise.reject(error);
+function mockSend(command: SendCommand | GetPublicAccessBlockCommand) {
+  try {
+    if (command instanceof HeadObjectCommand) {
+      return Promise.resolve(handleHeadObjectCommand(command));
     }
-    return Promise.reject(
-      new Error(`Unexpected S3 command: ${String(command)}`),
-    );
-  }) as S3SendMethod;
+    if (command instanceof GetObjectCommand) {
+      return Promise.resolve(handleGetObjectCommand(command));
+    }
+    if (command instanceof PutObjectCommand) {
+      return handlePutObjectCommand(command);
+    }
+    if (command instanceof GetPublicAccessBlockCommand) {
+      return Promise.resolve({
+        PublicAccessBlockConfiguration: {
+          BlockPublicAcls: true,
+          IgnorePublicAcls: true,
+          BlockPublicPolicy: true,
+          RestrictPublicBuckets: true,
+        },
+      });
+    }
+    if (command instanceof DeleteObjectCommand) {
+      return Promise.resolve(handleDeleteObjectCommand(command));
+    }
+    if (command instanceof CopyObjectCommand) {
+      return Promise.resolve(handleCopyObjectCommand(command));
+    }
+  } catch (error: unknown) {
+    return Promise.reject(error);
+  }
+  return Promise.reject(new Error(`Unexpected S3 command: ${String(command)}`));
 }
 
 function parseCopySource(copySource: string): string {
