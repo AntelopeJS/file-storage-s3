@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import {
   GetBucketAclCommand,
+  type GetBucketAclCommandOutput,
   GetBucketPolicyStatusCommand,
+  type GetBucketPolicyStatusCommandOutput,
   GetPublicAccessBlockCommand,
+  type GetPublicAccessBlockCommandOutput,
+  type Grant,
   S3Client,
 } from "@aws-sdk/client-s3";
 
@@ -24,15 +28,26 @@ const AuthenticatedUsersGroup =
 const OwnerGrant = {
   Grantee: { ID: "owner-id", Type: "CanonicalUser" },
   Permission: "FULL_CONTROL",
-};
-const OwnerOnlyAcl = { Grants: [OwnerGrant] };
+} satisfies Grant;
 
-type CommandHandler = () => Promise<unknown>;
+type ProviderResponse<Output> = Omit<Output, "$metadata">;
+type AclResponse = ProviderResponse<GetBucketAclCommandOutput>;
+type PublicAccessBlockResponse =
+  ProviderResponse<GetPublicAccessBlockCommandOutput>;
+type PolicyStatusResponse =
+  ProviderResponse<GetBucketPolicyStatusCommandOutput>;
+type CommandHandler<Response> = () => Promise<Response>;
+type ProviderCommand =
+  | GetBucketAclCommand
+  | GetBucketPolicyStatusCommand
+  | GetPublicAccessBlockCommand;
+
+const OwnerOnlyAcl: AclResponse = { Grants: [OwnerGrant] };
 
 interface ProviderBehavior {
-  publicAccessBlock?: CommandHandler;
-  acl?: CommandHandler;
-  policyStatus?: CommandHandler;
+  publicAccessBlock?: CommandHandler<PublicAccessBlockResponse>;
+  acl?: CommandHandler<AclResponse>;
+  policyStatus?: CommandHandler<PolicyStatusResponse>;
 }
 
 interface MockProvider {
@@ -47,15 +62,21 @@ function providerError(name: string, httpStatusCode: number): Error {
   });
 }
 
-function rejectWith(name: string, httpStatusCode: number): CommandHandler {
+function rejectWith(
+  name: string,
+  httpStatusCode: number,
+): CommandHandler<never> {
   return () => Promise.reject(providerError(name, httpStatusCode));
 }
 
-function resolveWith(response: unknown): CommandHandler {
+function resolveWith<Response>(response: Response): CommandHandler<Response> {
   return () => Promise.resolve(response);
 }
 
-function aclGrantingGroup(uri: string, permission: string): unknown {
+function aclGrantingGroup(
+  uri: string,
+  permission: Grant["Permission"],
+): AclResponse {
   return {
     Grants: [
       OwnerGrant,
@@ -67,7 +88,11 @@ function aclGrantingGroup(uri: string, permission: string): unknown {
 function createMockProvider(behavior: ProviderBehavior): MockProvider {
   const sentCommands: string[] = [];
   const unexpected = rejectWith("UnexpectedCommand", NotImplementedStatus);
-  const send = (command: unknown): Promise<unknown> => {
+  const send = (
+    command: ProviderCommand,
+  ): Promise<
+    AclResponse | PolicyStatusResponse | PublicAccessBlockResponse
+  > => {
     sentCommands.push(String(command?.constructor.name));
     if (command instanceof GetPublicAccessBlockCommand)
       return (behavior.publicAccessBlock ?? unexpected)();
@@ -258,7 +283,9 @@ function assumedPolicyStatusSuite(): void {
 }
 
 describe("private bucket verification", () => {
-  describe("strict mode (default)", strictModeSuite);
+  describe("strict mode (default)", () => {
+    strictModeSuite();
+  });
   describe("assumed private buckets", () => {
     assumedAclSuite();
     assumedPolicyStatusSuite();

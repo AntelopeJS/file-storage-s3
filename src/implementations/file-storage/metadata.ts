@@ -4,9 +4,7 @@
  *
  * @throws Error if two keys collide once lowercased
  */
-export function normalizeMetadataKeys(
-  metadata: Record<string, string> = {},
-): Record<string, string> {
+export function normalizeMetadataKeys(metadata: Record<string, string> = {}) {
   const originalKeys = new Map<string, string>();
   const normalized: Record<string, string> = {};
   for (const [key, value] of Object.entries(metadata)) {

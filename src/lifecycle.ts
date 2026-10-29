@@ -10,15 +10,17 @@ const StagingLifecycleRuleId = "antelopejs-staging-expiration";
 const NoLifecycleConfigErrorName = "NoSuchLifecycleConfiguration";
 const EnabledStatus = "Enabled";
 
-interface ErrorLike {
-  name?: string;
+interface NoLifecycleConfigError {
+  name: typeof NoLifecycleConfigErrorName;
 }
 
-function isNoLifecycleConfigError(error: unknown): boolean {
+function isNoLifecycleConfigError(
+  error: unknown,
+): error is NoLifecycleConfigError {
   if (typeof error !== "object" || !error) {
     return false;
   }
-  return (error as ErrorLike).name === NoLifecycleConfigErrorName;
+  return "name" in error && error.name === NoLifecycleConfigErrorName;
 }
 
 async function getExistingRules(

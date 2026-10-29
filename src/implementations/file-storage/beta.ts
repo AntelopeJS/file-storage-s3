@@ -45,15 +45,6 @@ const PublicKeyPrefix = `${VisibilityKeyPrefix}public/`;
 const MillisecondsPerSecond = 1000;
 const CreateOnlyCondition = "*";
 
-interface ErrorMetadata {
-  httpStatusCode?: number;
-}
-
-interface ErrorLike {
-  name?: string;
-  $metadata?: ErrorMetadata;
-}
-
 function generateResourceKey(request: UploadRequest): string {
   const fileExtension = extname(request.filename);
   const resourceId = randomUUID();
@@ -158,7 +149,7 @@ function buildMetadataHeaders(
 function buildUploadHeaders(
   request: UploadRequest,
   metadata: Record<string, string>,
-): Record<string, string> {
+): PresignedUploadResponse["headers"] {
   return {
     "Content-Type": request.mimetype,
     "Content-Length": String(request.size),
@@ -175,43 +166,68 @@ function buildUnhoistableHeaders(
   );
 }
 
-function shouldUsePublicKey(
-  resourceKey: string,
-  config: StorageConfig,
-): boolean {
-  return (
-    visibilityForKey(resourceKey, config) === "public" &&
-    Boolean(config.publicUrl)
-  );
-}
-
 function buildPublicReadUrl(
   resourceKey: string,
   config: StorageConfig,
-): string {
-  const publicUrl = config.publicUrl as string;
+): string | undefined {
+  if (visibilityForKey(resourceKey, config) !== "public") return undefined;
+  const publicUrl = config.publicUrl;
+  if (!publicUrl) return undefined;
   return `${publicUrl.replace(/\/$/, "")}/${resourceKey}`;
 }
 
-function isErrorLike(error: unknown): error is ErrorLike {
+function isErrorLike(error: unknown): error is object {
   if (typeof error !== "object" || !error) {
     return false;
   }
-  const candidate = error as { name?: unknown; $metadata?: unknown };
-  const hasName = typeof candidate.name === "string";
+  const hasName = "name" in error && typeof error.name === "string";
   const hasMetadata =
-    typeof candidate.$metadata === "object" && candidate.$metadata !== null;
+    "$metadata" in error &&
+    typeof error.$metadata === "object" &&
+    error.$metadata !== null;
   return hasName || hasMetadata;
 }
 
-function isNotFoundError(error: unknown): boolean {
-  if (!isErrorLike(error)) {
-    return false;
-  }
+function isPropertyHolder(value: unknown): value is object {
   return (
-    error.name === "NotFound" ||
-    error.$metadata?.httpStatusCode === NotFoundStatusCode
+    (typeof value === "object" && value !== null) || typeof value === "function"
   );
+}
+
+interface NamedError<Name extends string> {
+  name: Name;
+}
+
+interface StatusCodeError<StatusCode extends number> {
+  $metadata: { httpStatusCode: StatusCode };
+}
+
+function hasName<Name extends string>(
+  error: unknown,
+  name: Name,
+): error is NamedError<Name> {
+  return isPropertyHolder(error) && "name" in error && error.name === name;
+}
+
+function hasStatusCode<StatusCode extends number>(
+  error: unknown,
+  statusCode: StatusCode,
+): error is StatusCodeError<StatusCode> {
+  if (!isPropertyHolder(error) || !("$metadata" in error)) return false;
+  const metadata = error.$metadata;
+  return (
+    isPropertyHolder(metadata) &&
+    "httpStatusCode" in metadata &&
+    metadata.httpStatusCode === statusCode
+  );
+}
+
+function isNotFoundError(
+  error: unknown,
+): error is
+  | NamedError<"NotFound">
+  | StatusCodeError<typeof NotFoundStatusCode> {
+  return hasName(error, "NotFound") || hasStatusCode(error, NotFoundStatusCode);
 }
 
 function mapHeadObjectToFileMetadata(
@@ -324,7 +340,7 @@ export namespace internal {
         }),
       );
     } catch (error: unknown) {
-      if (isErrorLike(error) && error.$metadata?.httpStatusCode === 412)
+      if (isErrorLike(error) && hasStatusCode(error, 412))
         throw new FileConflictError(resourceKey);
       throw error;
     }
@@ -337,8 +353,9 @@ export namespace internal {
     storage?: string,
   ): Promise<PresignedReadResponse> => {
     const config = getStorageConfig(storage);
-    if (shouldUsePublicKey(resourceKey, config)) {
-      return { url: buildPublicReadUrl(resourceKey, config) };
+    const publicReadUrl = buildPublicReadUrl(resourceKey, config);
+    if (publicReadUrl !== undefined) {
+      return { url: publicReadUrl };
     }
 
     const client = getS3Client(storage);
@@ -371,13 +388,13 @@ export namespace internal {
         new GetObjectCommand({ Bucket: bucket, Key: resourceKey }),
       );
       return {
-        // In Node.js the SDK returns the object body as a Readable.
         body: response.Body as Readable,
         size: response.ContentLength ?? 0,
         mimetype: response.ContentType ?? DefaultMimetype,
       };
     } catch (error: unknown) {
-      if (isNotFoundError(error)) throw new FileNotFoundError(resourceKey);
+      if (isErrorLike(error) && isNotFoundError(error))
+        throw new FileNotFoundError(resourceKey);
       throw error;
     }
   };
@@ -415,7 +432,7 @@ export namespace internal {
       await client.send(command);
       return true;
     } catch (error: unknown) {
-      if (isNotFoundError(error)) {
+      if (isErrorLike(error) && isNotFoundError(error)) {
         return false;
       }
       throw error;
@@ -439,7 +456,7 @@ export namespace internal {
       const response = await client.send(command);
       return mapHeadObjectToFileMetadata(response, resourceKey);
     } catch (error: unknown) {
-      if (isNotFoundError(error)) {
+      if (isErrorLike(error) && isNotFoundError(error)) {
         throw new FileNotFoundError(resourceKey);
       }
       throw error;
@@ -470,7 +487,7 @@ export namespace internal {
         }),
       );
     } catch (error: unknown) {
-      if (isNotFoundError(error)) {
+      if (isErrorLike(error) && isNotFoundError(error)) {
         return;
       }
       throw error;
