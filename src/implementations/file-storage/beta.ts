@@ -1,6 +1,6 @@
 import { extname } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { Readable } from "node:stream";
+import { Readable } from "node:stream";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import {
   CopyObjectCommand,
@@ -387,8 +387,11 @@ export namespace internal {
       const response = await client.send(
         new GetObjectCommand({ Bucket: bucket, Key: resourceKey }),
       );
+      const body = response.Body;
+      if (!(body instanceof Readable))
+        throw new Error("ReadFile requires a readable body");
       return {
-        body: response.Body as Readable,
+        body,
         size: response.ContentLength ?? 0,
         mimetype: response.ContentType ?? DefaultMimetype,
       };
