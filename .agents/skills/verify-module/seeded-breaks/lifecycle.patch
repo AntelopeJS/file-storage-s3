@@ -1,5 +1,5 @@
 diff --git a/src/lifecycle.ts b/src/lifecycle.ts
-index 030c466..b04dfc9 100644
+index 030c466..d31ddfe 100644
 --- a/src/lifecycle.ts
 +++ b/src/lifecycle.ts
 @@ -45,7 +45,7 @@ function buildStagingRule(expirationDays: number): LifecycleRule {
@@ -7,7 +7,7 @@ index 030c466..b04dfc9 100644
      Status: EnabledStatus,
      Filter: { Prefix: STAGING_PREFIX },
 -    Expiration: { Days: expirationDays },
-+    Expiration: { Days: 1 },
++    Expiration: { Days: expirationDays + 1 },
    };
  }
  
