@@ -1,0 +1,12 @@
+diff --git a/src/implementations/file-storage/beta.ts b/src/implementations/file-storage/beta.ts
+index 1bf0a84..df64d10 100644
+--- a/src/implementations/file-storage/beta.ts
++++ b/src/implementations/file-storage/beta.ts
+@@ -296,6 +296,7 @@ export namespace internal {
+       Metadata: metadata,
+       IfNoneMatch: CreateOnlyCondition,
+     });
++    command.input.Key = `${resourceKey}.x`;
+ 
+     const expiresIn = config.defaultUploadExpiration;
+     const uploadUrl = await getSignedUrl(client, command, {
