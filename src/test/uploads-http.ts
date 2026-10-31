@@ -9,6 +9,9 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   PutPublicAccessBlockCommand,
+  S3ServiceException,
+  type S3Client,
+  type ServiceOutputTypes,
 } from "@aws-sdk/client-s3";
 import {
   CreateUploadUrl,
@@ -21,9 +24,10 @@ import {
   FileConflictError,
   FileNotFoundError,
   stripStagingPrefix,
+  type PresignedUploadResponse,
 } from "@antelopejs/interface-file-storage";
 
-import { construct, destroy, getS3Client } from "../dist/index.js";
+import { construct, destroy, getS3Client, type Config } from "../index";
 
 const endpoint = process.env.S3_UPLOAD_TEST_ENDPOINT;
 assert.ok(
@@ -42,7 +46,7 @@ const Replacement = "xyz";
 const ExpirationSeconds = 60;
 const publicBucket = `public-${randomUUID()}`;
 const privateBucket = `private-${randomUUID()}`;
-const config = {
+const config: Config = {
   default: {
     endpoint,
     region: "us-east-1",
@@ -55,18 +59,18 @@ const config = {
     defaultUploadExpiration: ExpirationSeconds,
     defaultReadExpiration: ExpirationSeconds,
   },
-};
-config.storages = {
-  [PrivateStorage]: {
-    endpoint,
-    region: "us-east-1",
-    bucket: privateBucket,
-    attachmentPrivateBucket: privateBucket,
-    accessKeyId: "local-test",
-    secretAccessKey: "local-test",
-    defaultVisibility: "private",
-    defaultUploadExpiration: ExpirationSeconds,
-    defaultReadExpiration: ExpirationSeconds,
+  storages: {
+    [PrivateStorage]: {
+      endpoint,
+      region: "us-east-1",
+      bucket: privateBucket,
+      attachmentPrivateBucket: privateBucket,
+      accessKeyId: "local-test",
+      secretAccessKey: "local-test",
+      defaultVisibility: "private",
+      defaultUploadExpiration: ExpirationSeconds,
+      defaultReadExpiration: ExpirationSeconds,
+    },
   },
 };
 
@@ -89,7 +93,7 @@ before(async () => {
 });
 after(() => destroy());
 
-function issue(staging = true) {
+function issue(staging = true): Promise<PresignedUploadResponse> {
   return CreateUploadUrl(
     {
       filename: "test.txt",
@@ -102,7 +106,7 @@ function issue(staging = true) {
   );
 }
 
-function put(upload, body) {
+function put(upload: PresignedUploadResponse, body: string): Promise<Response> {
   return fetch(upload.uploadUrl, {
     method: "PUT",
     headers: upload.headers,
@@ -110,14 +114,14 @@ function put(upload, body) {
   });
 }
 
-async function read(key) {
+async function read(key: string): Promise<string> {
   const response = await CreateReadUrl(key, undefined, PrivateStorage);
   const content = await fetch(response.url);
   assert.equal(content.status, SuccessStatus);
   return content.text();
 }
 
-test("first PUT wins and same or different bytes cannot replace it", async () => {
+void test("first PUT wins and same or different bytes cannot replace it", async () => {
   for (const staging of [false, true]) {
     const upload = await issue(staging);
     assert.equal((await put(upload, Original)).status, SuccessStatus);
@@ -128,7 +132,7 @@ test("first PUT wins and same or different bytes cannot replace it", async () =>
   }
 });
 
-test("concurrent writes return one winner whose bytes remain intact", async () => {
+void test("concurrent writes return one winner whose bytes remain intact", async () => {
   const upload = await issue();
   const responses = await Promise.all([
     put(upload, Original),
@@ -146,7 +150,7 @@ test("concurrent writes return one winner whose bytes remain intact", async () =
   assert.equal(await FileExists(upload.resourceKey), false);
 });
 
-test("separate forms receive different keys in the selected private storage", async () => {
+void test("separate forms receive different keys in the selected private storage", async () => {
   const first = await issue();
   const second = await issue();
   assert.notEqual(first.resourceKey, second.resourceKey);
@@ -159,7 +163,7 @@ test("separate forms receive different keys in the selected private storage", as
   }
 });
 
-test("deleting a source permits recreation until its URL expires", async () => {
+void test("deleting a source permits recreation until its URL expires", async () => {
   const upload = await issue();
   assert.equal((await put(upload, Original)).status, SuccessStatus);
   await DeleteFile(upload.resourceKey, PrivateStorage);
@@ -167,7 +171,7 @@ test("deleting a source permits recreation until its URL expires", async () => {
   assert.equal(await read(upload.resourceKey), Replacement);
 });
 
-test("camelCase metadata uploads over HTTP and reads back with lowercase keys", async () => {
+void test("camelCase metadata uploads over HTTP and reads back with lowercase keys", async () => {
   const upload = await CreateUploadUrl(
     {
       filename: "context.tar",
@@ -183,12 +187,13 @@ test("camelCase metadata uploads over HTTP and reads back with lowercase keys", 
     upload.resourceKey,
     PrivateStorage,
   );
+  assert.ok(metadata);
   assert.equal(metadata.tenantid, "tenant");
   assert.equal(metadata.buildid, "build");
   assert.equal(metadata.tenantId, undefined);
 });
 
-async function stagedPrivateUpload() {
+async function stagedPrivateUpload(): Promise<PresignedUploadResponse> {
   const upload = await CreateUploadUrl({
     filename: "report.txt",
     mimetype: "text/plain",
@@ -201,19 +206,39 @@ async function stagedPrivateUpload() {
   return upload;
 }
 
-async function withFault(fault, run) {
+type SendArguments = Parameters<S3Client["send"]>;
+type S3Command = SendArguments[0];
+type Fault = (
+  command: S3Command,
+  next: () => Promise<ServiceOutputTypes>,
+) => Promise<ServiceOutputTypes>;
+
+function deferred() {
+  let resolve: () => void = () => undefined;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve: () => resolve() };
+}
+
+async function withFault(
+  fault: Fault,
+  run: () => Promise<void>,
+): Promise<void> {
   const client = getS3Client();
   const original = client.send.bind(client);
-  client.send = (command, options) =>
-    fault(command, () => original(command, options));
+  Object.assign(client, {
+    send: (command: S3Command, options?: SendArguments[1]) =>
+      fault(command, () => original(command, options)),
+  });
   try {
     await run();
   } finally {
-    client.send = original;
+    Object.assign(client, { send: original });
   }
 }
 
-test("promotion streams to canonical private key preserving metadata and replays source gone", async () => {
+void test("promotion streams to canonical private key preserving metadata and replays source gone", async () => {
   const upload = await stagedPrivateUpload();
   const expected = stripStagingPrefix(upload.resourceKey);
   await withFault(
@@ -236,6 +261,7 @@ test("promotion streams to canonical private key preserving metadata and replays
   const metadata = await GetFileMetadata(expected);
   assert.equal(metadata.filename, "report.txt");
   assert.equal(metadata.mimetype, "text/plain");
+  assert.ok(metadata.metadata);
   assert.equal(metadata.metadata.custom, "retained");
   assert.equal(await read(expected), Original);
   assert.ok((await CreateReadUrl(expected)).expiresAt);
@@ -245,7 +271,7 @@ test("promotion streams to canonical private key preserving metadata and replays
   assert.deepEqual(await PromoteFile(expected), { resourceKey: expected });
 });
 
-test("foreign occupied final conflicts even with source gone and is never deleted", async () => {
+void test("foreign occupied final conflicts even with source gone and is never deleted", async () => {
   const upload = await stagedPrivateUpload();
   const key = stripStagingPrefix(upload.resourceKey);
   await getS3Client().send(
@@ -262,12 +288,12 @@ test("foreign occupied final conflicts even with source gone and is never delete
   assert.equal(await read(key), Replacement);
 });
 
-test("missing source and destination produce FileNotFoundError", async () => {
+void test("missing source and destination produce FileNotFoundError", async () => {
   const missing = `__staging__/__visibility__/private/${randomUUID()}`;
   await assert.rejects(PromoteFile(missing), FileNotFoundError);
 });
 
-test("lost publication ack verifies provenance before source cleanup", async () => {
+void test("lost publication ack verifies provenance before source cleanup", async () => {
   const upload = await stagedPrivateUpload();
   const key = stripStagingPrefix(upload.resourceKey);
   await withFault(
@@ -287,7 +313,7 @@ test("lost publication ack verifies provenance before source cleanup", async () 
   assert.equal(await read(key), Original);
 });
 
-test("concurrent promotion publishes once and both callers reconcile", async () => {
+void test("concurrent promotion publishes once and both callers reconcile", async () => {
   const upload = await stagedPrivateUpload();
   const results = await Promise.all([
     PromoteFile(upload.resourceKey),
@@ -298,7 +324,7 @@ test("concurrent promotion publishes once and both callers reconcile", async () 
   assert.equal(await FileExists(upload.resourceKey), false);
 });
 
-test("cleanup failure retry does not republish or overwrite the verified final", async () => {
+void test("cleanup failure retry does not republish or overwrite the verified final", async () => {
   const upload = await stagedPrivateUpload();
   const failure = new Error("delete failed");
   let writes = 0;
@@ -329,7 +355,7 @@ test("cleanup failure retry does not republish or overwrite the verified final",
   assert.equal(await FileExists(upload.resourceKey), false);
 });
 
-test("unknown unpublished outcome preserves source and propagates original error", async () => {
+void test("unknown unpublished outcome preserves source and propagates original error", async () => {
   const upload = await stagedPrivateUpload();
   const failure = new Error("unknown PUT result");
   await withFault(
@@ -348,19 +374,22 @@ test("unknown unpublished outcome preserves source and propagates original error
   assert.equal(await FileExists(stripStagingPrefix(upload.resourceKey)), false);
 });
 
-test("interrupted source stream cannot publish a partial final or delete the source", async () => {
+void test("interrupted source stream cannot publish a partial final or delete the source", async () => {
   const upload = await stagedPrivateUpload();
   await withFault(
     async (command, next) => {
       const result = await next();
       if (command instanceof GetObjectCommand) {
+        assert.ok("Body" in result && result.Body instanceof Readable);
         result.Body.destroy();
-        result.Body = Readable.from(
-          (async function* () {
-            yield Buffer.from("a");
-            throw new Error("source interrupted");
-          })(),
-        );
+        Object.assign(result, {
+          Body: Readable.from(
+            (async function* () {
+              yield Buffer.from("a");
+              throw new Error("source interrupted");
+            })(),
+          ),
+        });
       }
       return result;
     },
@@ -372,7 +401,7 @@ test("interrupted source stream cannot publish a partial final or delete the sou
   assert.equal(await FileExists(stripStagingPrefix(upload.resourceKey)), false);
 });
 
-test("incomplete final metadata fails closed without cleaning up source", async () => {
+void test("incomplete final metadata fails closed without cleaning up source", async () => {
   const upload = await stagedPrivateUpload();
   await withFault(
     async (command, next) => {
@@ -387,7 +416,8 @@ test("incomplete final metadata fails closed without cleaning up source", async 
   await withFault(
     async (command, next) => {
       const result = await next();
-      if (command instanceof HeadObjectCommand) delete result.ContentLength;
+      if (command instanceof HeadObjectCommand)
+        Reflect.deleteProperty(result, "ContentLength");
       return result;
     },
     async () => {
@@ -398,7 +428,7 @@ test("incomplete final metadata fails closed without cleaning up source", async 
   assert.equal(await read(stripStagingPrefix(upload.resourceKey)), Original);
 });
 
-test("legacy MoveFile cannot transplant a trusted origin to another canonical destination", async () => {
+void test("legacy MoveFile cannot transplant a trusted origin to another canonical destination", async () => {
   const first = await stagedPrivateUpload();
   const second = await stagedPrivateUpload();
   const promoted = await PromoteFile(first.resourceKey);
@@ -409,29 +439,23 @@ test("legacy MoveFile cannot transplant a trusted origin to another canonical de
   assert.equal(await read(destination), Original);
 });
 
-test("a late promotion stays private rather than implicitly publishing a cancelled upload", async () => {
+void test("a late promotion stays private rather than implicitly publishing a cancelled upload", async () => {
   const upload = await stagedPrivateUpload();
-  let release;
-  let arrived;
-  const gate = new Promise((resolve) => {
-    release = resolve;
-  });
-  const paused = new Promise((resolve) => {
-    arrived = resolve;
-  });
+  const gate = deferred();
+  const paused = deferred();
   await withFault(
     async (command, next) => {
       if (command instanceof PutObjectCommand) {
-        arrived();
-        await gate;
+        paused.resolve();
+        await gate.promise;
       }
       return next();
     },
     async () => {
       const promotion = PromoteFile(upload.resourceKey);
-      await paused;
+      await paused.promise;
       await DeleteFile(upload.resourceKey);
-      release();
+      gate.resolve();
       const final = await promotion;
       assert.ok((await CreateReadUrl(final.resourceKey)).expiresAt);
       await assert.rejects(
@@ -441,7 +465,9 @@ test("a late promotion stays private rather than implicitly publishing a cancell
             Key: final.resourceKey,
           }),
         ),
-        (error) => error.$metadata.httpStatusCode === 404,
+        (error) =>
+          error instanceof S3ServiceException &&
+          error.$metadata.httpStatusCode === 404,
       );
       assert.equal(await read(final.resourceKey), Original);
     },

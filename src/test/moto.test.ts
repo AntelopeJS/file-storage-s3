@@ -1,5 +1,6 @@
 import { promisify } from "node:util";
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { execFile } from "node:child_process";
 
 import { MotoEndpoint, setupMoto } from "./moto";
@@ -17,7 +18,7 @@ describe("S3 HTTP fault and conditional-write coverage", () => {
     this.timeout(IntegrationTimeout);
     const run = execute(
       process.execPath,
-      ["--test", "scripts/test-uploads.mjs"],
+      ["--test", join(__dirname, "uploads-http.js")],
       {
         env: { ...process.env, S3_UPLOAD_TEST_ENDPOINT: MotoEndpoint },
         timeout: IntegrationTimeout,

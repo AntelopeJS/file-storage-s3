@@ -131,6 +131,15 @@ The client sends the file with `PUT upload.uploadUrl` and every header of `uploa
 
 ## Compatibility
 
+<!-- antelopejs-docs-compat:start -->
+
+| Package                              | Supported        | Tested with |
+| ------------------------------------ | ---------------- | ----------- |
+| `@antelopejs/interface-core`         | `>=0.2.4 <1.0.0` | `0.2.4`     |
+| `@antelopejs/interface-file-storage` | `>=0.1.6 <0.2.0` | `0.1.6`     |
+
+<!-- antelopejs-docs-compat:end -->
+
 | Package                              | Supported range  |
 | ------------------------------------ | ---------------- |
 | `@antelopejs/interface-file-storage` | `>=0.1.6 <0.2.0` |
