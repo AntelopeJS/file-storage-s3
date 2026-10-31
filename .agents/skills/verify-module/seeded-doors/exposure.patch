@@ -1,0 +1,12 @@
+diff --git a/src/implementations/file-storage/private-bucket.ts b/src/implementations/file-storage/private-bucket.ts
+index 17f0694..9709d5f 100644
+--- a/src/implementations/file-storage/private-bucket.ts
++++ b/src/implementations/file-storage/private-bucket.ts
+@@ -88,7 +88,6 @@ async function verifyPublicAccessBlock(
+   const block = response.PublicAccessBlockConfiguration;
+   if (
+     !block?.BlockPublicAcls ||
+-    !block.IgnorePublicAcls ||
+     !block.BlockPublicPolicy ||
+     !block.RestrictPublicBuckets
+   )

@@ -1,0 +1,13 @@
+diff --git a/src/implementations/file-storage/promotion.ts b/src/implementations/file-storage/promotion.ts
+index 53d1162..96d4800 100644
+--- a/src/implementations/file-storage/promotion.ts
++++ b/src/implementations/file-storage/promotion.ts
+@@ -182,7 +182,7 @@ export async function promote(target: PromotionTarget): Promise<void> {
+   await target.client.send(
+     new DeleteObjectCommand({
+       Bucket: target.bucket,
+-      Key: target.sourceKey,
++      Key: target.destinationKey,
+     }),
+   );
+ }

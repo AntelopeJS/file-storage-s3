@@ -1,0 +1,13 @@
+diff --git a/src/implementations/file-storage/beta.ts b/src/implementations/file-storage/beta.ts
+index 1bf0a84..9d773f7 100644
+--- a/src/implementations/file-storage/beta.ts
++++ b/src/implementations/file-storage/beta.ts
+@@ -67,7 +67,7 @@ function visibilityForKey(
+   config: StorageConfig,
+ ): Visibility {
+   const key = keyWithoutStaging(resourceKey);
+-  if (key.startsWith(PrivateKeyPrefix)) return "private";
++  if (key.startsWith(PrivateKeyPrefix)) return "public";
+   if (key.startsWith(PublicKeyPrefix)) return "public";
+   return config.defaultVisibility;
+ }

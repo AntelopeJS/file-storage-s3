@@ -1,0 +1,13 @@
+diff --git a/src/implementations/file-storage/beta.ts b/src/implementations/file-storage/beta.ts
+index 1bf0a84..be143c0 100644
+--- a/src/implementations/file-storage/beta.ts
++++ b/src/implementations/file-storage/beta.ts
+@@ -236,7 +236,7 @@ function mapHeadObjectToFileMetadata(
+ ): FileMetadata {
+   const metadata = response.Metadata;
+   const fileMetadata: FileMetadata = {
+-    filename: metadata?.filename ?? "",
++    filename: "",
+     resourceKey,
+     size: response.ContentLength ?? 0,
+     mimetype: response.ContentType ?? DefaultMimetype,
