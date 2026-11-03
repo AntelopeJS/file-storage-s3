@@ -74,6 +74,9 @@
     "implements": [
       "@antelopejs/interface-file-storage"
     ],
-    "test": "src/test/antelope.test.ts"
+    "test": "src/test/antelope.test.ts",
+    "docs": {
+      "standard": true
+    }
   }
 }
