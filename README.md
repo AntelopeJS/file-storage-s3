@@ -1,13 +1,13 @@
-# @antelopejs/file-storage-s3
+# `@antelopejs/file-storage-s3`
 
 <div align="center">
-<a href="https://www.npmjs.com/package/@antelopejs/file-storage-s3"><img alt="npm" src="https://img.shields.io/npm/v/@antelopejs/file-storage-s3?style=for-the-badge&labelColor=000000&color=000000"></a>
-<a href="./LICENSE"><img alt="License" src="https://img.shields.io/npm/l/@antelopejs/file-storage-s3?style=for-the-badge&labelColor=000000&color=000000"></a>
-<a href="https://discord.gg/g4pFt6eXqu"><img src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000" alt="Discord"></a>
-<a href="https://github.com/AntelopeJS/interface-file-storage/tree/main/docs"><img src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" alt="Documentation"></a>
+<a href="https://www.npmjs.com/package/@antelopejs/file-storage-s3"><img data-illustration alt="npm" src="https://img.shields.io/npm/v/@antelopejs/file-storage-s3?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="./LICENSE"><img data-illustration alt="License" src="https://img.shields.io/npm/l/@antelopejs/file-storage-s3?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="https://discord.gg/g4pFt6eXqu"><img data-illustration src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000" alt="Discord"></a>
+<a href="https://github.com/AntelopeJS/interface-file-storage/tree/main/docs"><img data-illustration src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" alt="Documentation"></a>
 </div>
 
-The AntelopeJS file storage module for S3-compatible object storage (AWS S3, Cloudflare R2 and others), built on the AWS SDK for JavaScript v3: clients upload and read files directly from the bucket through presigned URLs.
+The AntelopeJS file storage module for S3-compatible object storage, such as AWS S3 and Cloudflare R2. It uses `@aws-sdk/client-s3`, and clients upload and read files directly from the bucket through presigned URLs.
 
 ## Interfaces
 
@@ -15,7 +15,7 @@ The AntelopeJS file storage module for S3-compatible object storage (AWS S3, Clo
 | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | [`@antelopejs/interface-file-storage`](https://github.com/AntelopeJS/interface-file-storage) | [File storage](https://github.com/AntelopeJS/interface-file-storage/tree/main/docs) |
 
-Uploads, reads, visibility, metadata, staging and promotion are documented on the interface pages.
+The interface pages document uploads, reads, visibility, metadata, staging, and promotion.
 
 ## Install
 
@@ -23,7 +23,7 @@ Uploads, reads, visibility, metadata, staging and promotion are documented on th
 ajs project modules add @antelopejs/file-storage-s3
 ```
 
-The module ships no default configuration: add a `config` block with a `default` storage before starting the project.
+The module ships no default configuration, so add a `config` block with a `default` storage before you start the project.
 
 ## Configuration
 
@@ -77,20 +77,20 @@ export default defineConfig({
 });
 ```
 
-| Key                              | Description                                                                                                                                                      |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `endpoint`, `region`             | S3 endpoint and region. R2 uses region `auto`.                                                                                                                   |
-| `accessKeyId`, `secretAccessKey` | Credentials of the S3 client.                                                                                                                                    |
-| `bucket`                         | Bucket that holds the files.                                                                                                                                     |
-| `attachmentPrivateBucket`        | Optional bucket for uploads that request `visibility: "private"`, kept apart from a public `bucket`.                                                             |
-| `publicUrl`                      | Optional public origin of `bucket`. Public files are read from `<publicUrl>/<resourceKey>`; without it, through presigned URLs.                                  |
-| `defaultVisibility`              | Visibility of files uploaded without an explicit one: `"public"` or `"private"`.                                                                                 |
-| `defaultUploadExpiration`        | Lifetime of an upload URL, in seconds.                                                                                                                           |
-| `defaultReadExpiration`          | Lifetime of a private read URL, in seconds, when the caller sets none.                                                                                           |
-| `stagingExpirationDays`          | Optional. At startup, the module adds a lifecycle rule that expires staged files after this many days. Omit it when your infrastructure manages lifecycle rules. |
-| `assumePrivateBuckets`           | Optional, `false` by default. Relaxes the private bucket verification for providers that cannot pass it.                                                         |
+| Key                              | Description                                                                                                                                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `endpoint`, `region`             | S3 endpoint and region. R2 uses region `auto`.                                                                                                                                                             |
+| `accessKeyId`, `secretAccessKey` | Credentials of the S3 client.                                                                                                                                                                              |
+| `bucket`                         | Bucket that holds the files.                                                                                                                                                                               |
+| `attachmentPrivateBucket`        | Optional bucket for uploads that request `visibility: "private"`, kept apart from a public `bucket`. Without it, such an upload throws.                                                                    |
+| `publicUrl`                      | Optional public origin of `bucket`. A public file is read from `<publicUrl>/<resourceKey>`. Without `publicUrl`, it is read through a presigned URL.                                                       |
+| `defaultVisibility`              | Visibility of a file uploaded without one, `"public"` or `"private"`.                                                                                                                                      |
+| `defaultUploadExpiration`        | Lifetime of an upload URL, in seconds.                                                                                                                                                                     |
+| `defaultReadExpiration`          | Lifetime of a private read URL, in seconds, when the caller sets none.                                                                                                                                     |
+| `stagingExpirationDays`          | Optional. At startup, the module puts a lifecycle rule on `bucket` and `attachmentPrivateBucket` that expires staged files after this many days. Omit it when your infrastructure manages lifecycle rules. |
+| `assumePrivateBuckets`           | Optional, `false` by default. Relaxes the private bucket verification for providers that cannot pass it.                                                                                                   |
 
-Every key except the optional ones is required. `default` holds the main storage; `storages` adds named ones with the same keys, addressed with the `storage` argument of the interface functions. The name `default` is reserved in `storages`.
+Every key except the optional ones is required. `default` holds the main storage. `storages` adds named storages with the same keys, and the `storage` argument of the interface functions selects one. The name `default` is reserved in `storages`, and the module refuses to start with it.
 
 ## Quick start
 
@@ -120,14 +120,14 @@ The client sends the file with `PUT upload.uploadUrl` and every header of `uploa
 
 - Upload URLs sign an `If-None-Match: *` condition, so an upload never replaces an existing object. The provider must enforce conditional `PUT`, and the bucket CORS rules must allow the `if-none-match` header.
 - The module verifies that `attachmentPrivateBucket` blocks all public access before using it. MinIO and Hetzner Object Storage need `assumePrivateBuckets: true`.
-- S3 stores metadata keys in lowercase: `GetFileMetadata` returns `tenantid` for an upload sent with `tenantId`.
+- S3 stores metadata keys in lowercase, so `GetFileMetadata` returns `tenantid` for an upload sent with `tenantId`. Two keys that differ only by case make the upload throw.
 
-[UPLOADS.md](UPLOADS.md) details these guarantees: create-only uploads, promotion, privacy and expiry, private bucket verification, metadata keys and CORS.
+[UPLOADS.md](UPLOADS.md) details these guarantees. It covers create-only uploads, promotion, privacy and expiry, private bucket verification, metadata keys, and CORS.
 
 ## Documentation
 
-- [File storage](https://github.com/AntelopeJS/interface-file-storage/tree/main/docs): the `@antelopejs/interface-file-storage` contract this module implements
-- [Configuration](https://framework.antelopejs.com/docs/concepts/configuration): module sources, `config` blocks and config variables in `antelope.config.ts`
+- [File storage](https://github.com/AntelopeJS/interface-file-storage/tree/main/docs) documents the `@antelopejs/interface-file-storage` contract that this module implements.
+- [Configuration](https://framework.antelopejs.com/docs/concepts/configuration) covers module sources, `config` blocks, and config variables in `antelope.config.ts`.
 
 ## Compatibility
 
@@ -140,11 +140,11 @@ The client sends the file with `PUT upload.uploadUrl` and every header of `uploa
 
 <!-- antelopejs-docs-compat:end -->
 
-The module is developed on Node.js 24, uses `@aws-sdk/client-s3`, and its tests run against Moto 5.2.3.
+`.nvmrc` names the Node.js release for development. The tests run against the Moto image that `.github/release-services.yml` pins.
 
 ## Contributing
 
-The tests need a [Moto](https://github.com/getmoto/moto) S3 server on `127.0.0.1:5005`. Start the one CI uses:
+The tests need a [Moto](https://github.com/getmoto/moto) S3 server on `127.0.0.1:5005`. Start the one that CI uses:
 
 ```bash
 docker compose -f .github/release-services.yml up -d --wait
