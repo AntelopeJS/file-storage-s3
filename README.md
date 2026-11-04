@@ -9,6 +9,8 @@
 
 The AntelopeJS file storage module for S3-compatible object storage, such as AWS S3 and Cloudflare R2. It uses `@aws-sdk/client-s3`, and clients upload and read files directly from the bucket through presigned URLs.
 
+Part of [AntelopeJS](https://github.com/AntelopeJS/antelopejs), the TypeScript framework where modules depend on contracts and the application chooses the provider. Built by the team behind [AntelopeJS DMS](https://github.com/AntelopeJS/dms).
+
 ## Interfaces
 
 | Interface                                                                                    | Documentation                                                                       |
