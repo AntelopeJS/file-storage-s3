@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.1.10
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.9...v0.1.10)
+
+### 💅 Refactors
+
+- Clean the repo with the guardrail pack ([#41](https://github.com/AntelopeJS/file-storage-s3/pull/41))
+- Clear the residual ratchet findings ([#42](https://github.com/AntelopeJS/file-storage-s3/pull/42))
+
+### 📖 Documentation
+
+- **changelog:** Upgrade notes of file-storage-s3 0.1.9 ([#35](https://github.com/AntelopeJS/file-storage-s3/pull/35))
+- **readme:** Use one Discord invite ([#46](https://github.com/AntelopeJS/file-storage-s3/pull/46))
+- **github:** Send questions and ideas to Discord ([#47](https://github.com/AntelopeJS/file-storage-s3/pull/47))
+
+### 🏡 Chore
+
+- Adopt the guardrail pack from tooling-configs 0.2.0 ([#36](https://github.com/AntelopeJS/file-storage-s3/pull/36))
+- Configure Renovate with the shared preset ([#37](https://github.com/AntelopeJS/file-storage-s3/pull/37))
+- Land the cleanup campaign on main ([#50](https://github.com/AntelopeJS/file-storage-s3/pull/50))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.1.9
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.8...v0.1.9)
