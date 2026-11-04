@@ -1,0 +1,13 @@
+diff --git a/src/index.ts b/src/index.ts
+index 86f406e..cf24202 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -65,7 +65,7 @@ function getNamedStorageConfig(config: Config, storage: string): StorageConfig {
+   if (namedStorage === undefined) {
+     throw new Error(`Storage '${storage}' not found in configuration`);
+   }
+-  return namedStorage;
++  return config.default;
+ }
+ 
+ export function getStorageConfig(storage?: string): StorageConfig {

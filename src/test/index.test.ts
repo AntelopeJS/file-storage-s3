@@ -245,8 +245,10 @@ async function handlePutObjectCommand(
   assert.equal(command.input.IfNoneMatch, "*");
   assert.ok(command.input.Body instanceof Readable);
   let size = 0;
-  for await (const chunk of command.input.Body)
-    size += Buffer.byteLength(chunk);
+  for await (const chunk of command.input.Body) {
+    assert.ok(chunk instanceof Buffer);
+    size += chunk.byteLength;
+  }
   assert.equal(size, command.input.ContentLength);
   if (storageByResourceKey.has(key)) {
     throw Object.assign(new Error("Precondition failed"), {
