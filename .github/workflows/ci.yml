@@ -18,6 +18,7 @@ jobs:
         README.md
       docs-typescript-project: tsconfig.docs.json
       renovate-sync: false
+      test-job: true
     permissions:
       contents: read
 
