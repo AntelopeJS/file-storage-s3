@@ -16,27 +16,23 @@ const config: VerifyConfig = {
     data: {
       globs: ["src/implementations/file-storage/**", "src/lifecycle.ts"],
       funnels: ["src/implementations/file-storage/beta.ts"],
-      containments: ["objects/objects-lifecycle"],
       why: "every file an application stores goes through this adapter into a customer's bucket: the key layout, the visibility prefixes and the delete and move calls decide which objects exist and which are lost",
     },
     format: null,
     contract: {
       globs: ["package.json"],
       funnels: [],
-      containments: [],
       why: "the config keys (`default`, `storages`, the bucket and expiry settings), `antelopeJs.implements` and the interface range",
     },
     outbound: null,
     exposure: {
       globs: ["src/implementations/file-storage/private-bucket.ts", "src/implementations/file-storage/beta.ts"],
       funnels: ["src/implementations/file-storage/private-bucket.ts"],
-      containments: [],
       why: "private uploads and reads are routed to the private bucket only after its public access block is verified: a changed check makes private files readable by anyone",
     },
     publish: {
       globs: ["package.json", ".release-it.json", "changelogen.config.json", ".github/workflows/release.yml"],
       funnels: [],
-      containments: [],
       why: "the package name and release workflow claim @antelopejs/file-storage-s3 on npm",
     },
   },

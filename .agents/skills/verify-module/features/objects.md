@@ -15,7 +15,7 @@ An application module checks, describes, links, moves and deletes a stored file.
 
 ## Sub-features
 
-- `objects-lifecycle`: `FileExists` and `GetFileMetadata` answer for an uploaded file and for an unknown key (`FileNotFoundError`); `CreateReadUrl` of a public file is the public base plus the key and serves the bytes; `MoveFile` leaves the object at the destination only with its bytes and metadata; `DeleteFile` empties the bucket. This is the containment journey of the Data door.
+- `objects-lifecycle`: `FileExists` and `GetFileMetadata` answer for an uploaded file and for an unknown key (`FileNotFoundError`); `CreateReadUrl` of a public file is the public base plus the key and serves the bytes; `MoveFile` leaves the object at the destination only with its bytes and metadata; `DeleteFile` empties the bucket.
 
 ## How to get to it (user POV)
 
