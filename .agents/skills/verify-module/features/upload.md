@@ -3,6 +3,7 @@ covers:
   - src/implementations/file-storage/beta.ts
   - src/implementations/file-storage/metadata.ts
   - src/implementations/file-storage/index.ts
+  - src/implementations/file-storage/promotion.ts
 docs:
   - README.md
   - UPLOADS.md

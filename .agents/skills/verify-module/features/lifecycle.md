@@ -1,6 +1,7 @@
 ---
 covers:
   - src/lifecycle.ts
+  - src/index.ts
 docs:
   - README.md
   - UPLOADS.md
