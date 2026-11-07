@@ -6,6 +6,7 @@ The S3-compatible (AWS S3, Cloudflare R2) implementation of `@antelopejs/interfa
 
 - `src/index.ts` holds the module config types and lifecycle (`construct`, `destroy`, `getS3Client`); `src/lifecycle.ts` applies the optional staging expiry rule.
 - `src/implementations/file-storage/` implements the interface. `ImplementInterface` picks its `internal` namespace by convention, so `knip.config.ts` lists it as an entry.
+- `build` runs `tsc --skipLibCheck` for speed. `typecheck` checks the same files with the lib check, and `pnpm run checks`, pre-push, CI and `release` all run it.
 - `UPLOADS.md` documents the create-only upload, promotion and visibility contract. Update it with any behaviour change there.
 
 ## Versioning

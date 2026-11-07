@@ -28,13 +28,13 @@
     "provenance": true
   },
   "scripts": {
-    "build": "rimraf dist && tsc",
+    "build": "rimraf dist && tsc --skipLibCheck",
     "dev": "ajs project run -w -p playground",
     "format": "oxfmt .",
     "lint:fix": "oxlint --fix",
     "lint": "oxlint && antelopejs-check-interface-ranges",
     "prepack": "pnpm run build",
-    "release": "pnpm run lint && pnpm run test && pnpm run prepack && release-it",
+    "release": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run prepack && release-it",
     "test": "ajs module test .",
     "format:check": "oxfmt --check .",
     "knip": "knip",
