@@ -1,6 +1,7 @@
 ---
 covers:
   - src/index.ts
+  - src/implementations/file-storage/beta.ts
 docs:
   - README.md
   - UPLOADS.md
