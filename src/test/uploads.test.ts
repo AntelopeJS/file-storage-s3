@@ -137,7 +137,7 @@ describe("create-only upload signatures", () => {
 });
 
 describe("unreadable metadata keys", () => {
-  it("rejects a metadata key S3 clients cannot read back as __proto__", async () => {
+  it("rejects a __proto__ metadata key in any casing", async () => {
     for (const key of ["__proto__", "__PROTO__"]) {
       const request = {
         filename: "context.tar",
