@@ -57,7 +57,7 @@ The operator is then responsible for keeping the private bucket private: do not 
 
 ## Metadata keys
 
-S3 stores user metadata as `x-amz-meta-*` headers, whose names are case-insensitive and lowercase on the wire. The module lowercases metadata keys before signing an upload, so `{ tenantId: "t" }` becomes the signed header `x-amz-meta-tenantid`. `GetFileMetadata` returns the keys S3 stores, in lowercase: read `metadata.tenantid`, not `metadata.tenantId`. Keys that only differ by casing, such as `tenantId` and `tenantid`, collide once lowercased and make `CreateUploadUrl` throw instead of silently dropping one value.
+S3 stores user metadata as `x-amz-meta-*` headers, whose names are case-insensitive and lowercase on the wire. The module lowercases metadata keys before signing an upload, so `{ tenantId: "t" }` becomes the signed header `x-amz-meta-tenantid`. `GetFileMetadata` returns the keys S3 stores, in lowercase: read `metadata.tenantid`, not `metadata.tenantId`. Keys that only differ by casing, such as `tenantId` and `tenantid`, collide once lowercased and make `CreateUploadUrl` throw instead of silently dropping one value. A key that lowercases to `__proto__` makes `CreateUploadUrl` and `WriteFile` throw as well: the AWS SDK parses stored `x-amz-meta-*` headers into a plain object, where that key never reads back.
 
 ## Browser CORS requirements
 
