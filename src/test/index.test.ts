@@ -107,6 +107,15 @@ describe("S3 commands and URL mapping", () => {
     assert.equal(response.expiresAt, undefined);
   });
 
+  it("rejects storage names that are not own keys of the configured storages", async () => {
+    for (const storage of ["missing", "constructor", "toString", "__proto__"]) {
+      await assert.rejects(
+        CreateReadUrl(ExistingResourceKey, undefined, storage),
+        { message: `Storage '${storage}' not found in configuration` },
+      );
+    }
+  });
+
   it("returns presigned read URL and expiration for private storage", async () => {
     const response = await CreateReadUrl(ExistingResourceKey, 120);
     assert.ok(response.url.includes("X-Amz-Signature="));
