@@ -61,7 +61,9 @@ function ensureModuleConfig(): Config {
 }
 
 function getNamedStorageConfig(config: Config, storage: string): StorageConfig {
-  const namedStorage = config.storages?.[storage];
+  const namedStorage = new Map(Object.entries(config.storages ?? {})).get(
+    storage,
+  );
   if (namedStorage === undefined) {
     throw new Error(`Storage '${storage}' not found in configuration`);
   }
