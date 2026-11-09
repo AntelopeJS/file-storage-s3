@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { CreateUploadUrl } from "@antelopejs/interface-file-storage";
+import { CreateUploadUrl, WriteFile } from "@antelopejs/interface-file-storage";
 
 import { uploadSignature } from "./upload-signature";
 
@@ -133,5 +133,26 @@ describe("create-only upload signatures", () => {
       uploadSignature(url, response.headers, TestSecret),
       url.searchParams.get("X-Amz-Signature"),
     );
+  });
+});
+
+describe("unreadable metadata keys", () => {
+  it("rejects a __proto__ metadata key in any casing", async () => {
+    for (const key of ["__proto__", "__PROTO__"]) {
+      const request = {
+        filename: "context.tar",
+        mimetype: "application/x-tar",
+        size: 3,
+        metadata: Object.fromEntries([
+          [key, "x"],
+          ["a", "1"],
+        ]),
+      };
+      await assert.rejects(CreateUploadUrl(request), /__proto__/);
+      await assert.rejects(
+        WriteFile(request, new TextEncoder().encode("abc")),
+        /__proto__/,
+      );
+    }
   });
 });
