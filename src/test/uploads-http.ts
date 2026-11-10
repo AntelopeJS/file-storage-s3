@@ -1,16 +1,15 @@
 import { Readable } from "node:stream";
+import { sdkStreamMixin } from "@smithy/util-stream";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { before, after, test } from "node:test";
 import {
   CreateBucketCommand,
-  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
-  DeleteObjectCommand,
   PutPublicAccessBlockCommand,
   S3ServiceException,
-  type S3Client,
+  type ServiceInputTypes,
   type ServiceOutputTypes,
 } from "@aws-sdk/client-s3";
 import {
@@ -206,10 +205,8 @@ async function stagedPrivateUpload(): Promise<PresignedUploadResponse> {
   return upload;
 }
 
-type SendArguments = Parameters<S3Client["send"]>;
-type S3Command = SendArguments[0];
 type Fault = (
-  command: S3Command,
+  command: { name: string; input: ServiceInputTypes },
   next: () => Promise<ServiceOutputTypes>,
 ) => Promise<ServiceOutputTypes>;
 
@@ -225,16 +222,25 @@ async function withFault(
   fault: Fault,
   run: () => Promise<void>,
 ): Promise<void> {
-  const client = getS3Client();
-  const original = client.send.bind(client);
-  Object.assign(client, {
-    send: (command: S3Command, options?: SendArguments[1]) =>
-      fault(command, () => original(command, options)),
-  });
+  const stack = getS3Client().middlewareStack;
+  const name = "uploadsHttpFault";
+  stack.add(
+    (next, context) => async (args) => {
+      let response: unknown;
+      const command = { name: context.commandName ?? "", input: args.input };
+      const output = await fault(command, async () => {
+        const result = await next(args);
+        response = result.response;
+        return result.output;
+      });
+      return { output, response };
+    },
+    { step: "initialize", priority: "high", name },
+  );
   try {
     await run();
   } finally {
-    Object.assign(client, { send: original });
+    stack.remove(name);
   }
 }
 
@@ -243,11 +249,13 @@ void test("promotion streams to canonical private key preserving metadata and re
   const expected = stripStagingPrefix(upload.resourceKey);
   await withFault(
     async (command, next) => {
-      if (command instanceof PutObjectCommand) {
-        assert.ok(command.input.Body instanceof Readable);
-        assert.equal(command.input.ContentLength, Buffer.byteLength(Original));
-        assert.equal(command.input.IfNoneMatch, "*");
-        assert.equal(command.input.Bucket, privateBucket);
+      const { input } = command;
+      if (command.name === "PutObjectCommand") {
+        assert.ok("Body" in input && "IfNoneMatch" in input);
+        assert.ok(input.Body instanceof Readable);
+        assert.equal(input.ContentLength, Buffer.byteLength(Original));
+        assert.equal(input.IfNoneMatch, "*");
+        assert.equal(input.Bucket, privateBucket);
       }
       return next();
     },
@@ -299,7 +307,7 @@ void test("lost publication ack verifies provenance before source cleanup", asyn
   await withFault(
     async (command, next) => {
       const result = await next();
-      if (command instanceof PutObjectCommand)
+      if (command.name === "PutObjectCommand")
         throw new Error("lost put acknowledgement");
       return result;
     },
@@ -330,8 +338,8 @@ void test("cleanup failure retry does not republish or overwrite the verified fi
   let writes = 0;
   await withFault(
     async (command, next) => {
-      if (command instanceof PutObjectCommand) writes++;
-      if (command instanceof DeleteObjectCommand) throw failure;
+      if (command.name === "PutObjectCommand") writes++;
+      if (command.name === "DeleteObjectCommand") throw failure;
       return next();
     },
     async () => {
@@ -344,7 +352,7 @@ void test("cleanup failure retry does not republish or overwrite the verified fi
   assert.equal(await FileExists(upload.resourceKey), true);
   await withFault(
     async (command, next) => {
-      if (command instanceof PutObjectCommand) writes++;
+      if (command.name === "PutObjectCommand") writes++;
       return next();
     },
     async () => {
@@ -360,7 +368,7 @@ void test("unknown unpublished outcome preserves source and propagates original 
   const failure = new Error("unknown PUT result");
   await withFault(
     async (command, next) => {
-      if (command instanceof PutObjectCommand) throw failure;
+      if (command.name === "PutObjectCommand") throw failure;
       return next();
     },
     async () => {
@@ -379,17 +387,17 @@ void test("interrupted source stream cannot publish a partial final or delete th
   await withFault(
     async (command, next) => {
       const result = await next();
-      if (command instanceof GetObjectCommand) {
+      if (command.name === "GetObjectCommand") {
         assert.ok("Body" in result && result.Body instanceof Readable);
         result.Body.destroy();
-        Object.assign(result, {
-          Body: Readable.from(
+        result.Body = sdkStreamMixin(
+          Readable.from(
             (async function* () {
               yield Buffer.from("a");
               throw new Error("source interrupted");
             })(),
           ),
-        });
+        );
       }
       return result;
     },
@@ -405,7 +413,7 @@ void test("incomplete final metadata fails closed without cleaning up source", a
   const upload = await stagedPrivateUpload();
   await withFault(
     async (command, next) => {
-      if (command instanceof DeleteObjectCommand)
+      if (command.name === "DeleteObjectCommand")
         throw new Error("retain source");
       return next();
     },
@@ -416,7 +424,7 @@ void test("incomplete final metadata fails closed without cleaning up source", a
   await withFault(
     async (command, next) => {
       const result = await next();
-      if (command instanceof HeadObjectCommand)
+      if (command.name === "HeadObjectCommand")
         Reflect.deleteProperty(result, "ContentLength");
       return result;
     },
@@ -445,7 +453,7 @@ void test("a late promotion stays private rather than implicitly publishing a ca
   const paused = deferred();
   await withFault(
     async (command, next) => {
-      if (command instanceof PutObjectCommand) {
+      if (command.name === "PutObjectCommand") {
         paused.resolve();
         await gate.promise;
       }
