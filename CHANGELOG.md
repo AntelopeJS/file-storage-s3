@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.1.11
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.10...v0.1.11)
+
+### 🔥 Performance
+
+- **ci:** Probe Moto health every second while it starts ([#56](https://github.com/AntelopeJS/file-storage-s3/pull/56))
+- **build:** Skip the lib check in build, keep it in typecheck ([#57](https://github.com/AntelopeJS/file-storage-s3/pull/57))
+
+### 🩹 Fixes
+
+- **verify:** Cover the lifecycle call in index.ts and upload metadata in promotion.ts ([#58](https://github.com/AntelopeJS/file-storage-s3/pull/58))
+- **storage:** Resolve only own keys of storages in getStorageConfig ([#59](https://github.com/AntelopeJS/file-storage-s3/pull/59))
+- **metadata:** Reject a __proto__ metadata key instead of dropping it ([#60](https://github.com/AntelopeJS/file-storage-s3/pull/60))
+
+### 📖 Documentation
+
+- **readme:** Link the package to AntelopeJS and AntelopeJS DMS ([dc90fc5](https://github.com/AntelopeJS/file-storage-s3/commit/dc90fc5))
+
+### 📦 Build
+
+- **deps:** Bump @antelopejs packages to the 2026-11-06 releases ([#55](https://github.com/AntelopeJS/file-storage-s3/pull/55))
+- **deps:** Bump @antelopejs/tooling-configs to 0.4.0 ([#61](https://github.com/AntelopeJS/file-storage-s3/pull/61))
+- **deps:** Bump @antelopejs/tooling-configs to 0.5.0 ([#62](https://github.com/AntelopeJS/file-storage-s3/pull/62))
+- **deps:** Bump @antelopejs/tooling-configs to 0.5.1 ([#63](https://github.com/AntelopeJS/file-storage-s3/pull/63))
+
+### 🏡 Chore
+
+- **verify:** Remove seeded runs from the verification skill ([#52](https://github.com/AntelopeJS/file-storage-s3/pull/52))
+- **ci:** Remove the weekly mutation caller ([#53](https://github.com/AntelopeJS/file-storage-s3/pull/53))
+
+### 🤖 CI
+
+- Call ci-node.yml@v1 ([#54](https://github.com/AntelopeJS/file-storage-s3/pull/54))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.1.10
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.9...v0.1.10)
