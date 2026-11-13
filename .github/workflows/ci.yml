@@ -20,6 +20,17 @@ jobs:
       renovate-sync: false
       test-job: true
       windows: true
+      setup-commands: |
+        if [ "$RUNNER_OS" = Windows ] && [ "$GITHUB_JOB" = test ]; then
+          python -m pip install --quiet --disable-pip-version-check 'moto[server]==5.2.3'
+          nohup python -m moto.server -H 127.0.0.1 -p 5005 > "$RUNNER_TEMP/moto.log" 2>&1 &
+          for _ in $(seq 60); do
+            curl -sf -o /dev/null http://127.0.0.1:5005 && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/moto.log"
+          exit 1
+        fi
     permissions:
       contents: read
   renovate-sync:
