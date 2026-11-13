@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@antelopejs/core": "^1.21.0",
-    "@antelopejs/tooling-configs": "^0.5.5",
+    "@antelopejs/tooling-configs": "^0.5.8",
     "@smithy/util-stream": "^4.5.20",
     "@types/mocha": "^10.0.10",
     "@types/node": "^22.19.15",
