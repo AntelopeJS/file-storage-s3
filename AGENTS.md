@@ -11,7 +11,7 @@ The S3-compatible (AWS S3, Cloudflare R2) implementation of `@antelopejs/interfa
 
 ## Versioning
 
-- Every 0.x `@antelopejs/*` range stops below the next minor (`>=0.1.6 <0.2.0`), and every 1.x range uses `~`, because a new minor can add required handlers. The `dependency:ranges` step of `pnpm run checks` rejects any other range.
+- Every 0.x `@antelopejs/*` range stops below the next minor (`>=0.1.8 <0.2.0`), and every 1.x range uses `~`, because a new minor can add required handlers. The `dependency:ranges` step of `pnpm run checks` rejects any other range.
 - When a dependency range changes, update the compatibility table in `README.md` too.
 - A release that needs action from users gets an `### Upgrade notes` section in `CHANGELOG.md`, above the generated entries.
 

@@ -140,8 +140,8 @@ The client sends the file with `PUT upload.uploadUrl` and every header of `uploa
 
 | Package                              | Supported        | Tested with |
 | ------------------------------------ | ---------------- | ----------- |
-| `@antelopejs/interface-core`         | `>=0.4.0 <0.5.0` | `0.4.0`     |
-| `@antelopejs/interface-file-storage` | `>=0.1.6 <0.2.0` | `0.1.6`     |
+| `@antelopejs/interface-core`         | `>=0.5.1 <0.6.0` | `0.5.1`     |
+| `@antelopejs/interface-file-storage` | `>=0.1.8 <0.2.0` | `0.1.8`     |
 
 <!-- antelopejs-docs-compat:end -->
 
