@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.1.12
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.11...v0.1.12)
+
+### 📖 Documentation
+
+- **readme:** Adopt the AntelopeJS framework README style ([#64](https://github.com/AntelopeJS/file-storage-s3/pull/64))
+
+### 📦 Build
+
+- Move to @antelopejs/tooling-configs 0.8 and the three-tier CI ([#67](https://github.com/AntelopeJS/file-storage-s3/pull/67))
+
+### 🏡 Chore
+
+- **deps:** Move to tooling-configs 0.7 and cap @antelopejs ranges below the next minor ([#66](https://github.com/AntelopeJS/file-storage-s3/pull/66))
+
+### 🤖 CI
+
+- Run CI on Windows beside Linux ([#65](https://github.com/AntelopeJS/file-storage-s3/pull/65))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.1.11
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.10...v0.1.11)
