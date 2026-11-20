@@ -23,7 +23,6 @@ jobs:
       docs-typescript-project: tsconfig.docs.json
       renovate-sync: false
       test-job: true
-      windows-merge-queue: true
       affected-tests: true
     permissions:
       contents: read
