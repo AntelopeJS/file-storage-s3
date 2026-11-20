@@ -18,7 +18,7 @@ The S3-compatible (AWS S3, Cloudflare R2) implementation of `@antelopejs/interfa
 ## Tests
 
 - Every test needs a Moto 5.2.3 S3 server on `127.0.0.1:5005`, including `pnpm run checks`. Start it with `docker compose -f .github/release-services.yml up -d --wait`, or `moto_server -H 127.0.0.1 -p 5005` (`uv tool install 'moto[server]==5.2.3'`). `S3_UPLOAD_TEST_ENDPOINT` overrides the endpoint and must stay on loopback.
-- `pnpm test` runs `ajs module test .` with the test project in `src/test/antelope.test.ts`. Its `installCommand` (`pnpm run build`) is the only build; the compiled suites in `dist/test` then run, followed by the shared conformance suite from `@antelopejs/interface-file-storage`.
+- `pnpm test` runs `scripts/test.ts`: on Windows only the suites that mock S3 (`index`, `uploads`, `private-bucket`), because the shared CI never starts Moto there; elsewhere `ajs module test .` with the test project in `src/test/antelope.test.ts`. Its `installCommand` (`pnpm run build`) is the only build; the compiled suites in `dist/test` then run, followed by the shared conformance suite from `@antelopejs/interface-file-storage`.
 - `src/test/moto.test.ts` runs the HTTP and fault-injection tests in `dist/test/uploads-http.js` with `node --test` in a child process against `dist`. They are part of `pnpm test`; run them alone with `S3_UPLOAD_TEST_ENDPOINT=http://127.0.0.1:5005 node --test dist/test/uploads-http.js` after `pnpm run build`.
 
 <!-- antelopejs-guardrails:start -->
