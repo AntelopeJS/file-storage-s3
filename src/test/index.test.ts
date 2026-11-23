@@ -244,7 +244,10 @@ function parseCopySource(copySource: string): string {
 
 function handleGetObjectCommand(command: GetObjectCommand): SourceResponse {
   const head = handleHeadObjectCommand(new HeadObjectCommand(command.input));
-  return { ...head, Body: Readable.from([Buffer.alloc(head.ContentLength!)]) };
+  return {
+    ...head,
+    Body: Readable.from([Buffer.alloc(head.ContentLength ?? 0)]),
+  };
 }
 
 async function handlePutObjectCommand(
@@ -253,6 +256,8 @@ async function handlePutObjectCommand(
   const key = getCommandResourceKey(command);
   assert.equal(command.input.IfNoneMatch, "*");
   assert.ok(command.input.Body instanceof Readable);
+  const mimetype = command.input.ContentType;
+  assert.ok(mimetype !== undefined);
   let size = 0;
   for await (const chunk of command.input.Body) {
     assert.ok(chunk instanceof Buffer);
@@ -266,7 +271,7 @@ async function handlePutObjectCommand(
   }
   storageByResourceKey.set(key, {
     size,
-    mimetype: command.input.ContentType!,
+    mimetype,
     lastModified: new Date(),
     metadata: command.input.Metadata ?? {},
   });
