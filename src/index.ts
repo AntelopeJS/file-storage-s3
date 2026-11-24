@@ -39,7 +39,14 @@ export interface Config {
 }
 
 const DefaultStorageKey = "default";
-let moduleConfig: Config | null = null;
+
+/** The parsed config: named storages are looked up by name only through a map. */
+interface ParsedConfig {
+  default: StorageConfig;
+  storages: ReadonlyMap<string, StorageConfig>;
+}
+
+let moduleConfig: ParsedConfig | null = null;
 const s3Clients: Map<string, S3Client> = new Map();
 
 function createS3Client(config: StorageConfig): S3Client {
@@ -53,17 +60,18 @@ function createS3Client(config: StorageConfig): S3Client {
   });
 }
 
-function ensureModuleConfig(): Config {
+function ensureModuleConfig(): ParsedConfig {
   if (!moduleConfig) {
     throw new Error("Module config is not initialized");
   }
   return moduleConfig;
 }
 
-function getNamedStorageConfig(config: Config, storage: string): StorageConfig {
-  const namedStorage = new Map(Object.entries(config.storages ?? {})).get(
-    storage,
-  );
+function getNamedStorageConfig(
+  config: ParsedConfig,
+  storage: string,
+): StorageConfig {
+  const namedStorage = config.storages.get(storage);
   if (namedStorage === undefined) {
     throw new Error(`Storage '${storage}' not found in configuration`);
   }
@@ -105,11 +113,16 @@ interface StorageEntry {
 const StagingLifecycleErrorPrefix =
   "[file-storage-s3] Failed to apply staging lifecycle rule for bucket";
 
-function collectStorageEntries(config: Config): StorageEntry[] {
+function parseConfig(config: Config): ParsedConfig {
+  return {
+    default: config.default,
+    storages: new Map(Object.entries(config.storages ?? {})),
+  };
+}
+
+function collectStorageEntries(config: ParsedConfig): StorageEntry[] {
   const entries: StorageEntry[] = [{ config: config.default }];
-  for (const [storage, storageConfig] of Object.entries(
-    config.storages ?? {},
-  )) {
+  for (const [storage, storageConfig] of config.storages) {
     entries.push({ storage, config: storageConfig });
   }
   return entries;
@@ -146,7 +159,7 @@ async function setupStagingLifecycleForEntry(
 const AssumedPrivateBucketsWarning =
   "[file-storage-s3] Private bucket enforcement is operator-asserted (assumePrivateBuckets) for bucket";
 
-function collectAssumedPrivateBuckets(config: Config): string[] {
+function collectAssumedPrivateBuckets(config: ParsedConfig): string[] {
   return collectStorageEntries(config).flatMap((entry) =>
     entry.config.assumePrivateBuckets && entry.config.attachmentPrivateBucket
       ? [entry.config.attachmentPrivateBucket]
@@ -154,23 +167,24 @@ function collectAssumedPrivateBuckets(config: Config): string[] {
   );
 }
 
-function warnAssumedPrivateBuckets(config: Config): void {
+function warnAssumedPrivateBuckets(config: ParsedConfig): void {
   for (const bucket of collectAssumedPrivateBuckets(config)) {
     Logging.Warn(AssumedPrivateBucketsWarning, bucket);
   }
 }
 
-async function setupStagingLifecycles(config: Config): Promise<void> {
+async function setupStagingLifecycles(config: ParsedConfig): Promise<void> {
   const entries = collectStorageEntries(config);
   await Promise.all(entries.map(setupStagingLifecycleForEntry));
 }
 
 export async function construct(config: Config): Promise<void> {
-  if (config.storages?.default)
+  const parsed = parseConfig(config);
+  if (parsed.storages.has(DefaultStorageKey))
     throw new Error("Named storage 'default' is reserved");
-  moduleConfig = config;
-  warnAssumedPrivateBuckets(config);
-  await setupStagingLifecycles(config);
+  moduleConfig = parsed;
+  warnAssumedPrivateBuckets(parsed);
+  await setupStagingLifecycles(parsed);
   const [fileStorageInterface, fileStorageImplementation] = await Promise.all([
     import("@antelopejs/interface-file-storage"),
     import("./implementations/file-storage"),
