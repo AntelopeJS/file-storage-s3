@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.1.13
+
+[compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.12...v0.1.13)
+
+### 💅 Refactors
+
+- Hold named storages in a ReadonlyMap built once in construct ([#76](https://github.com/AntelopeJS/file-storage-s3/pull/76))
+
+### 📦 Build
+
+- Roll out the trunk CI and tooling-configs 0.8.9 ([#70](https://github.com/AntelopeJS/file-storage-s3/pull/70))
+
+### 🏡 Chore
+
+- Adopt tooling-configs 0.10 ([#75](https://github.com/AntelopeJS/file-storage-s3/pull/75))
+
+### ✅ Tests
+
+- Run only the service-free suites on Windows ([#71](https://github.com/AntelopeJS/file-storage-s3/pull/71))
+
+### 🤖 CI
+
+- Re-sync the AntelopeJS pack for the release app ([#72](https://github.com/AntelopeJS/file-storage-s3/pull/72))
+- Stop forwarding the retired RELEASE_GITHUB_TOKEN ([#74](https://github.com/AntelopeJS/file-storage-s3/pull/74))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.1.12
 
 [compare changes](https://github.com/AntelopeJS/file-storage-s3/compare/v0.1.11...v0.1.12)
